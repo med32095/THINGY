@@ -2,141 +2,177 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#6366f1">
-    <title>THINGY - AI Chat</title>
-    <link rel="manifest" href="./manifest.json">
-    <link rel="apple-touch-icon" href="./icons/icon-192x192.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Rubik's Cube Timer</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
     <div class="app-container">
-        <!-- Mobile Menu Toggle -->
-        <button id="menuToggle" class="menu-toggle" aria-label="Toggle menu">
-            ☰
-        </button>
-        
-        <!-- Sidebar Overlay -->
-        <div id="sidebarOverlay" class="sidebar-overlay"></div>
-        
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h1>THINGY</h1>
-                <button id="newChatBtn" class="new-chat-btn" title="New Chat">
-                    <span>+</span> New Chat
-                </button>
+        <header class="app-header">
+            <h1>Cube Timer</h1>
+            <div class="stats-toggle" id="statsToggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 20V10M12 20V4M6 20v-6"/>
+                </svg>
             </div>
-            
-            <div class="conversations-list" id="conversationsList">
-                <!-- Conversations will be rendered here -->
-            </div>
-            
-            <div class="sidebar-footer">
-                <div id="syncStatus" class="sync-status">
-                    <div id="connectPrompt" class="connect-prompt">
-                        <span class="sync-icon">☁️</span>
-                        <button id="showTokenBtn" class="connect-btn">Connect GitHub</button>
-                    </div>
-                    
-                    <div id="tokenInputSection" class="token-input-section hidden">
-                        <input type="password" id="tokenInput" placeholder="GitHub token...">
-                        <button id="saveTokenBtn">Connect</button>
-                        <button id="cancelTokenBtn">Cancel</button>
-                    </div>
-                    
-                    <div id="syncInfo" class="sync-info hidden">
-                        <span id="syncIndicator" class="sync-indicator">🔄</span>
-                        <span id="lastSync">Never synced</span>
-                        <button id="settingsBtn" class="settings-btn">⚙️</button>
-                    </div>
+        </header>
+
+        <main class="main-content">
+            <div class="timer-section">
+                <div class="inspection-warning" id="inspectionWarning">
+                    <span class="warning-icon">!</span>
+                    <span class="warning-text">Inspection</span>
+                    <span class="inspection-count" id="inspectionCount">15</span>
                 </div>
-            </div>
-        </aside>
-        
-        <!-- Main Chat Area -->
-        <main class="chat-container">
-            <!-- Empty State -->
-            <div id="emptyState" class="empty-state">
-                <div class="empty-state-icon">🧠</div>
-                <h2>THINGY AI</h2>
-                <p>Start a new conversation or select one from the sidebar</p>
-            </div>
-            
-            <!-- Messages Area -->
-            <div id="messagesArea" class="messages-area hidden">
-                <div class="messages-header">
-                    <h2 id="conversationTitle">New Chat</h2>
-                    <button id="deleteChatBtn" class="delete-chat-btn" title="Delete Chat">🗑️</button>
-                </div>
-                <div id="messagesList" class="messages-list">
-                    <!-- Messages will be rendered here -->
-                </div>
-            </div>
-            
-            <!-- Input Area -->
-            <div class="input-area">
-                <div class="input-container" onclick="document.getElementById('messageInput').focus()">
-                    <textarea 
-                        id="messageInput" 
-                        placeholder="Message THINGY..." 
-                        rows="1"
-                        disabled
-                        autocomplete="off"
-                        autocorrect="off"
-                        autocapitalize="off"
-                        spellcheck="false"
-                    ></textarea>
-                    <button id="sendBtn" class="send-btn" disabled>
-                        <span>➤</span>
+                <div class="timer-display" id="timerDisplay">0.00</div>
+                <div class="timer-controls">
+                    <button class="control-btn scramble-btn" id="scrambleBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
+                        Scramble
+                    </button>
+                    <button class="control-btn start-stop-btn" id="startStopBtn">
+                        <svg viewBox="0 0 24 24" fill="currentColor" class="play-icon">
+                            <polygon points="5,3 19,12 5,21"/>
+                        </svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor" class="pause-icon" style="display:none;">
+                            <rect x="6" y="4" width="4" height="16"/>
+                            <rect x="14" y="4" width="4" height="16"/>
+                        </svg>
                     </button>
                 </div>
-                <div class="input-footer">
-                    <div class="footer-left">
-                        <span id="modelInfo">GitHub Models</span>
-                        <span id="usageInfo" class="usage-info">—</span>
+            </div>
+
+            <div class="scramble-display" id="scrambleDisplay">
+                R U R' U' R' F R2 U' R' U' R U R' F'
+            </div>
+
+            <div class="records-section" id="recordsSection">
+                <h2>Personal Records</h2>
+                <div class="records-grid">
+                    <div class="record-card">
+                        <span class="record-label">Single</span>
+                        <span class="record-value" id="singleRecord">--</span>
+                        <span class="record-date" id="singleDate"></span>
                     </div>
-                    <span id="typingIndicator" class="typing-indicator hidden">THINGY is typing...</span>
+                    <div class="record-card">
+                        <span class="record-label">Ao5</span>
+                        <span class="record-value" id="ao5Record">--</span>
+                        <span class="record-date" id="ao5Date"></span>
+                    </div>
+                    <div class="record-card">
+                        <span class="record-label">Ao12</span>
+                        <span class="record-value" id="ao12Record">--</span>
+                        <span class="record-date" id="ao12Date"></span>
+                    </div>
+                    <div class="record-card">
+                        <span class="record-label">Ao50</span>
+                        <span class="record-value" id="ao50Record">--</span>
+                        <span class="record-date" id="ao50Date"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="history-section" id="historySection">
+                <h2>Solve History</h2>
+                <div class="history-controls">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="last10">Last 10</button>
+                    <button class="filter-btn" data-filter="last50">Last 50</button>
+                </div>
+                <div class="history-list" id="historyList"></div>
+            </div>
+
+            <div class="charts-section" id="chartsSection" style="display: none;">
+                <h2>Statistics</h2>
+                <div class="chart-container">
+                    <canvas id="timeChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+                <div class="stats-summary">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Solves</span>
+                        <span class="stat-value" id="totalSolves">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Average</span>
+                        <span class="stat-value" id="totalAverage">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Best Session</span>
+                        <span class="stat-value" id="bestSession">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section" id="settingsSection" style="display: none;">
+                <h2>Settings</h2>
+                <div class="setting-item">
+                    <label for="inspectionTime">Inspection Time</label>
+                    <select id="inspectionTime">
+                        <option value="0">Off</option>
+                        <option value="8">8 seconds</option>
+                        <option value="10">10 seconds</option>
+                        <option value="15" selected>15 seconds</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label for="timerType">Timer Type</label>
+                    <select id="timerType">
+                        <option value="touch">Touch</option>
+                        <option value="keys">Spacebar</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label for="theme">Theme</label>
+                    <select id="theme">
+                        <option value="dark" selected>Dark</option>
+                        <option value="light">Light</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <button class="danger-btn" id="clearDataBtn">Clear All Data</button>
                 </div>
             </div>
         </main>
-        
-        <!-- Settings Menu -->
-        <div id="settingsMenu" class="settings-menu hidden">
-            <button id="syncNow" class="menu-item">
-                <span>↻</span> Sync now
+
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-tab="timer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12,6 12,12 16,14"/>
+                </svg>
+                Timer
             </button>
-            <div class="menu-divider"></div>
-            <button id="logoutBtn" class="menu-item menu-item-danger">
-                <span>✕</span> Logout
+            <button class="nav-btn" data-tab="history">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                History
             </button>
-        </div>
-        
-        <!-- Delete Confirmation Dialog -->
-        <div id="deleteDialog" class="dialog-overlay hidden">
-            <div class="dialog">
-                <h3>Delete Conversation?</h3>
-                <p>This will permanently delete this conversation. This action cannot be undone.</p>
-                <div class="dialog-buttons">
-                    <button id="cancelDelete" class="dialog-btn dialog-btn-secondary">Cancel</button>
-                    <button id="confirmDelete" class="dialog-btn dialog-btn-danger">Delete</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Logout Confirmation Dialog -->
-        <div id="logoutDialog" class="dialog-overlay hidden">
-            <div class="dialog">
-                <h3>Logout?</h3>
-                <p>Are you sure you want to logout? Your conversations will remain on this device but will no longer sync with GitHub.</p>
-                <div class="dialog-buttons">
-                    <button id="cancelLogout" class="dialog-btn dialog-btn-secondary">Cancel</button>
-                    <button id="confirmLogout" class="dialog-btn dialog-btn-danger">Logout</button>
-                </div>
-            </div>
-        </div>
+            <button class="nav-btn" data-tab="charts">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                Stats
+            </button>
+            <button class="nav-btn" data-tab="settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+                Settings
+            </button>
+        </nav>
     </div>
-    
+
     <script src="app.js"></script>
 </body>
 </html>

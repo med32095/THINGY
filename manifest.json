@@ -1,11 +1,11 @@
 {
-  "name": "THINGY - AI Chat",
-  "short_name": "THINGY",
-  "description": "A browser-based AI chat app with GitHub sync",
+  "name": "Cube Timer",
+  "short_name": "CubeTimer",
+  "description": "A mobile-friendly Rubik's cube timer with statistics tracking",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#6366f1",
-  "theme_color": "#6366f1",
+  "background_color": "#1a1a2e",
+  "theme_color": "#e94560",
   "orientation": "portrait-primary",
   "scope": "./",
   "icons": [

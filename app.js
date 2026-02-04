@@ -1,840 +1,568 @@
-// GitHub Models Provider
-class GitHubProvider {
-  constructor(token) {
-    this.token = token
-    this.baseUrl = 'https://models.github.ai/inference'
-    this.model = 'gpt-4o'
-  }
-
-  async* streamChat(messages) {
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: messages,
-        stream: true
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      const chunk = decoder.decode(value)
-      const lines = chunk.split('\n')
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6)
-          if (data === '[DONE]') return
-
-          try {
-            const parsed = JSON.parse(data)
-            const content = parsed.choices?.[0]?.delta?.content
-            if (content) {
-              yield content
-            }
-          } catch (e) {
-            // Skip invalid JSON
-          }
-        }
-      }
-    }
-  }
-}
-
-// Chat Application
-class ChatApp {
+class CubeTimer {
   constructor() {
-    // Data
-    this.conversations = JSON.parse(localStorage.getItem('thingy-conversations')) || []
-    this.currentConversationId = null
-    this.githubToken = localStorage.getItem('thingy-github-token')
-    this.gistId = localStorage.getItem('thingy-gist-id')
-    this.provider = this.githubToken ? new GitHubProvider(this.githubToken) : null
-    
-    // State
-    this.isGenerating = false
-    this.syncInterval = null
-    this.pendingChanges = false
-    
-    // DOM Elements - Sidebar
-    this.sidebar = document.getElementById('sidebar')
-    this.sidebarOverlay = document.getElementById('sidebarOverlay')
-    this.menuToggle = document.getElementById('menuToggle')
-    this.newChatBtn = document.getElementById('newChatBtn')
-    this.conversationsList = document.getElementById('conversationsList')
-    
-    // DOM Elements - Sync
-    this.connectPrompt = document.getElementById('connectPrompt')
-    this.showTokenBtn = document.getElementById('showTokenBtn')
-    this.tokenInputSection = document.getElementById('tokenInputSection')
-    this.tokenInput = document.getElementById('tokenInput')
-    this.saveTokenBtn = document.getElementById('saveTokenBtn')
-    this.cancelTokenBtn = document.getElementById('cancelTokenBtn')
-    this.syncInfo = document.getElementById('syncInfo')
-    this.lastSync = document.getElementById('lastSync')
-    this.syncIndicator = document.getElementById('syncIndicator')
-    this.settingsBtn = document.getElementById('settingsBtn')
-    this.settingsMenu = document.getElementById('settingsMenu')
-    
-    // DOM Elements - Chat
-    this.emptyState = document.getElementById('emptyState')
-    this.messagesArea = document.getElementById('messagesArea')
-    this.messagesHeader = document.querySelector('.messages-header h2')
-    this.messagesList = document.getElementById('messagesList')
-    this.deleteChatBtn = document.getElementById('deleteChatBtn')
-    this.messageInput = document.getElementById('messageInput')
-    this.sendBtn = document.getElementById('sendBtn')
-    this.typingIndicator = document.getElementById('typingIndicator')
-    this.usageInfo = document.getElementById('usageInfo')
-    this.githubUsername = localStorage.getItem('thingy-github-username')
-    
-    // DOM Elements - Dialogs
-    this.deleteDialog = document.getElementById('deleteDialog')
-    this.cancelDeleteBtn = document.getElementById('cancelDelete')
-    this.confirmDeleteBtn = document.getElementById('confirmDelete')
-    this.logoutDialog = document.getElementById('logoutDialog')
-    this.cancelLogoutBtn = document.getElementById('cancelLogout')
-    this.confirmLogoutBtn = document.getElementById('confirmLogout')
-    
-    this.init()
+    this.solves = this.loadSolves()
+    this.settings = this.loadSettings()
+
+    this.timerState = 'idle'
+    this.startTime = 0
+    this.elapsedTime = 0
+    this.inspectionTime = 0
+    this.inspectionInterval = null
+    this.timerInterval = null
+    this.currentScramble = ''
+
+    this.lastSolve = null
+
+    this.initElements()
+    this.initEventListeners()
+    this.generateScramble()
+    this.renderHistory()
+    this.renderRecords()
+    this.updateStats()
   }
 
-  init() {
-    // Mobile menu toggle
-    this.menuToggle.addEventListener('click', () => this.toggleSidebar())
-    this.sidebarOverlay.addEventListener('click', () => this.closeSidebar())
-    
-    // Sidebar events
-    this.newChatBtn.addEventListener('click', () => {
-      this.createNewConversation()
-      this.closeSidebar()
+  loadSolves() {
+    const saved = localStorage.getItem('cube-timer-solves')
+    return saved ? JSON.parse(saved) : []
+  }
+
+  saveSolves() {
+    localStorage.setItem('cube-timer-solves', JSON.stringify(this.solves))
+  }
+
+  loadSettings() {
+    const saved = localStorage.getItem('cube-timer-settings')
+    return saved ? JSON.parse(saved) : {
+      inspectionTime: 15,
+      timerType: 'touch',
+      theme: 'dark'
+    }
+  }
+
+  saveSettings() {
+    localStorage.setItem('cube-timer-settings', JSON.stringify(this.settings))
+  }
+
+  initElements() {
+    this.timerDisplay = document.getElementById('timerDisplay')
+    this.startStopBtn = document.getElementById('startStopBtn')
+    this.scrambleBtn = document.getElementById('scrambleBtn')
+    this.scrambleDisplay = document.getElementById('scrambleDisplay')
+    this.inspectionWarning = document.getElementById('inspectionWarning')
+    this.inspectionCount = document.getElementById('inspectionCount')
+    this.historyList = document.getElementById('historyList')
+    this.chartsSection = document.getElementById('chartsSection')
+    this.settingsSection = document.getElementById('settingsSection')
+    this.recordsSection = document.getElementById('recordsSection')
+    this.historySection = document.getElementById('historySection')
+
+    this.inspectionTimeSelect = document.getElementById('inspectionTime')
+    this.timerTypeSelect = document.getElementById('timerType')
+    this.themeSelect = document.getElementById('theme')
+    this.clearDataBtn = document.getElementById('clearDataBtn')
+
+    this.timeChart = document.getElementById('timeChart')
+    this.distributionChart = document.getElementById('distributionChart')
+
+    this.currentFilter = 'all'
+  }
+
+  initEventListeners() {
+    this.startStopBtn.addEventListener('click', () => this.handleTimerAction())
+
+    this.scrambleBtn.addEventListener('click', () => {
+      this.generateScramble()
     })
-    
-    // Sync events
-    this.showTokenBtn.addEventListener('click', () => this.showTokenInput())
-    this.saveTokenBtn.addEventListener('click', () => this.saveToken())
-    this.cancelTokenBtn.addEventListener('click', () => this.hideTokenInput())
-    this.tokenInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.saveToken()
+
+    this.inspectionTimeSelect.value = this.settings.inspectionTime
+    this.inspectionTimeSelect.addEventListener('change', (e) => {
+      this.settings.inspectionTime = parseInt(e.target.value)
+      this.saveSettings()
     })
-    this.settingsBtn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this.toggleSettingsMenu()
+
+    this.timerTypeSelect.value = this.settings.timerType
+    this.timerTypeSelect.addEventListener('change', (e) => {
+      this.settings.timerType = e.target.value
+      this.saveSettings()
     })
-    document.getElementById('syncNow').addEventListener('click', () => {
-      this.syncNow()
-      this.hideSettingsMenu()
+
+    this.themeSelect.value = this.settings.theme
+    this.themeSelect.addEventListener('change', (e) => {
+      this.settings.theme = e.target.value
+      this.applyTheme()
+      this.saveSettings()
     })
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      this.showLogoutDialog()
-      this.hideSettingsMenu()
-    })
-    
-    // Chat events
-    this.sendBtn.addEventListener('click', () => this.sendMessage())
-    this.messageInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        this.sendMessage()
+
+    this.clearDataBtn.addEventListener('click', () => {
+      if (confirm('Are you sure you want to clear all solve data? This cannot be undone.')) {
+        this.solves = []
+        this.saveSolves()
+        this.renderHistory()
+        this.renderRecords()
+        this.updateStats()
       }
     })
-    this.messageInput.addEventListener('input', () => this.autoResizeTextarea())
-    
-    // Mobile: Ensure textarea is focusable
-    this.messageInput.addEventListener('touchstart', (e) => {
-      if (!this.messageInput.disabled) {
-        e.stopPropagation()
-        this.messageInput.focus()
-      }
-    }, { passive: true })
-    
-    // Scroll to bottom when focusing input
-    this.messageInput.addEventListener('focus', () => {
-      if (this.messagesList) {
-        this.messagesList.scrollTop = this.messagesList.scrollHeight
-      }
-    })
-    
-    this.usageInfo.addEventListener('click', () => {
-      if (this.githubToken && this.githubUsername) {
-        this.fetchUsage()
-      }
-    })
-    
-    this.deleteChatBtn.addEventListener('click', () => this.showDeleteDialog())
-    
-    // Dialog events
-    this.cancelDeleteBtn.addEventListener('click', () => this.hideDeleteDialog())
-    this.confirmDeleteBtn.addEventListener('click', () => this.confirmDelete())
-    this.cancelLogoutBtn.addEventListener('click', () => this.hideLogoutDialog())
-    this.confirmLogoutBtn.addEventListener('click', () => this.confirmLogout())
-    
-    // Close menus when clicking outside
-    document.addEventListener('click', () => {
-      this.hideSettingsMenu()
-    })
-    this.settingsMenu.addEventListener('click', (e) => e.stopPropagation())
-    
-    // Initialize
-    if (this.githubToken) {
-      this.showSyncUI()
-      this.enableChat()
-      this.startAutoSync()
-      this.syncNow()
-      this.fetchUserInfo()
-      this.fetchUsage()
-    }
-    
-    this.renderConversationsList()
-    this.registerServiceWorker()
-  }
 
-  // Conversation Management
-  createNewConversation() {
-    const conversation = {
-      id: Date.now().toString(),
-      title: 'New Chat',
-      messages: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-    
-    this.conversations.unshift(conversation)
-    this.saveConversations()
-    this.selectConversation(conversation.id)
-    this.renderConversationsList()
-  }
-
-  selectConversation(id) {
-    this.currentConversationId = id
-    this.renderConversationsList()
-    this.renderMessages()
-    this.closeSidebar()
-  }
-
-  toggleSidebar() {
-    this.sidebar.classList.toggle('open')
-    this.sidebarOverlay.classList.toggle('open')
-  }
-
-  closeSidebar() {
-    this.sidebar.classList.remove('open')
-    this.sidebarOverlay.classList.remove('open')
-  }
-
-  deleteConversation(id) {
-    this.conversations = this.conversations.filter(c => c.id !== id)
-    this.saveConversations()
-    
-    if (this.currentConversationId === id) {
-      this.currentConversationId = null
-      this.showEmptyState()
-    }
-    
-    this.renderConversationsList()
-    this.hideDeleteDialog()
-  }
-
-  getCurrentConversation() {
-    return this.conversations.find(c => c.id === this.currentConversationId)
-  }
-
-  updateConversationTitle(conversation) {
-    if (conversation.messages.length > 0) {
-      const firstUserMessage = conversation.messages.find(m => m.role === 'user')
-      if (firstUserMessage) {
-        conversation.title = firstUserMessage.content.slice(0, 30) + 
-          (firstUserMessage.content.length > 30 ? '...' : '')
-      }
-    }
-  }
-
-  // Message Handling
-  async sendMessage() {
-    const content = this.messageInput.value.trim()
-    if (!content || this.isGenerating || !this.provider) return
-
-    // Create conversation if needed
-    if (!this.currentConversationId) {
-      this.createNewConversation()
-    }
-
-    const conversation = this.getCurrentConversation()
-    
-    // Add user message
-    const userMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: content,
-      timestamp: new Date().toISOString()
-    }
-    
-    conversation.messages.push(userMessage)
-    conversation.updatedAt = new Date().toISOString()
-    this.updateConversationTitle(conversation)
-    
-    // Clear input
-    this.messageInput.value = ''
-    this.autoResizeTextarea()
-    
-    // Save and render
-    this.saveConversations()
-    this.renderConversationsList()
-    this.renderMessages()
-    
-    // Generate AI response
-    await this.generateResponse(conversation)
-  }
-
-  async generateResponse(conversation) {
-    this.isGenerating = true
-    this.typingIndicator.classList.remove('hidden')
-    this.sendBtn.disabled = true
-    this.messageInput.disabled = true
-
-    // Create assistant message placeholder
-    const assistantMessage = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: '',
-      timestamp: new Date().toISOString()
-    }
-    
-    conversation.messages.push(assistantMessage)
-    this.renderMessages()
-    
-    try {
-      // Convert messages to API format
-      const apiMessages = conversation.messages
-        .filter(m => m.content) // Skip empty messages
-        .map(m => ({
-          role: m.role,
-          content: m.content
-        }))
-
-      // Stream response
-      let fullContent = ''
-      for await (const chunk of this.provider.streamChat(apiMessages)) {
-        fullContent += chunk
-        assistantMessage.content = fullContent
-        this.updateLastMessage(fullContent)
-      }
-      
-      conversation.updatedAt = new Date().toISOString()
-      this.saveConversations()
-      this.fetchUsage()
-      
-    } catch (error) {
-      console.error('Generation error:', error)
-      assistantMessage.content = 'Sorry, I encountered an error. Please try again.'
-      this.updateLastMessage(assistantMessage.content)
-      this.saveConversations()
-    } finally {
-      this.isGenerating = false
-      this.typingIndicator.classList.add('hidden')
-      this.sendBtn.disabled = false
-      this.messageInput.disabled = false
-      this.messageInput.focus()
-    }
-  }
-
-  // UI Rendering
-  renderConversationsList() {
-    if (this.conversations.length === 0) {
-      this.conversationsList.innerHTML = `
-        <div class="empty-conversations">
-          No conversations yet
-        </div>
-      `
-      return
-    }
-
-    this.conversationsList.innerHTML = this.conversations.map(conv => `
-      <div class="conversation-item ${conv.id === this.currentConversationId ? 'active' : ''}" 
-           data-id="${conv.id}">
-        <span class="conversation-icon">💬</span>
-        <span class="conversation-title">${this.escapeHtml(conv.title)}</span>
-      </div>
-    `).join('')
-
-    // Add click handlers
-    this.conversationsList.querySelectorAll('.conversation-item').forEach(item => {
-      item.addEventListener('click', () => {
-        this.selectConversation(item.dataset.id)
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'))
+        e.target.classList.add('active')
+        this.currentFilter = e.target.dataset.filter
+        this.renderHistory()
       })
     })
-  }
 
-  renderMessages() {
-    const conversation = this.getCurrentConversation()
-    
-    if (!conversation) {
-      this.showEmptyState()
-      return
-    }
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'))
+        e.currentTarget.classList.add('active')
 
-    this.showMessagesArea()
-    this.messagesHeader.textContent = conversation.title
-
-    if (conversation.messages.length === 0) {
-      this.messagesList.innerHTML = `
-        <div class="empty-state" style="flex: none; padding: 40px 0;">
-          <p>Send a message to start chatting</p>
-        </div>
-      `
-      return
-    }
-
-    this.messagesList.innerHTML = conversation.messages.map(msg => `
-      <div class="message ${msg.role}" data-id="${msg.id}">
-        <div class="message-avatar">
-          ${msg.role === 'user' ? '👤' : '🧠'}
-        </div>
-        <div class="message-content">
-          ${this.formatMessageContent(msg.content)}
-        </div>
-      </div>
-    `).join('')
-
-    // Scroll to bottom
-    this.messagesList.scrollTop = this.messagesList.scrollHeight
-  }
-
-  updateLastMessage(content) {
-    const lastMessage = this.messagesList.lastElementChild
-    if (lastMessage) {
-      const contentDiv = lastMessage.querySelector('.message-content')
-      if (contentDiv) {
-        contentDiv.innerHTML = this.formatMessageContent(content)
-        this.messagesList.scrollTop = this.messagesList.scrollHeight
-      }
-    }
-  }
-
-  formatMessageContent(content) {
-    if (!content) return ''
-    
-    // Simple markdown parsing
-    let html = this.escapeHtml(content)
-    
-    // Bold
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    
-    // Italic
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
-    
-    // Code inline
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
-    
-    // Code blocks
-    html = html.replace(/```[\s\S]*?```/g, (match) => {
-      const code = match.slice(3, -3).trim()
-      return `<pre><code>${this.escapeHtml(code)}</code></pre>`
+        const tab = e.currentTarget.dataset.tab
+        this.showTab(tab)
+      })
     })
-    
-    // Line breaks
-    html = html.replace(/\n/g, '<br>')
-    
-    return html
+
+    document.getElementById('statsToggle').addEventListener('click', () => {
+      this.chartsSection.style.display = this.chartsSection.style.display === 'none' ? 'block' : 'none'
+    })
+
+    if (this.settings.timerType === 'keys') {
+      document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
+          e.preventDefault()
+          this.handleTimerAction()
+        }
+      })
+    }
+
+    this.applyTheme()
   }
 
-  showEmptyState() {
-    this.emptyState.classList.remove('hidden')
-    this.messagesArea.classList.add('hidden')
-  }
+  showTab(tab) {
+    this.recordsSection.style.display = 'none'
+    this.historySection.style.display = 'none'
+    this.chartsSection.style.display = 'none'
+    this.settingsSection.style.display = 'none'
 
-  showMessagesArea() {
-    this.emptyState.classList.add('hidden')
-    this.messagesArea.classList.remove('hidden')
-  }
-
-  autoResizeTextarea() {
-    this.messageInput.style.height = 'auto'
-    this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 200) + 'px'
-  }
-
-  enableChat() {
-    this.messageInput.disabled = false
-    this.sendBtn.disabled = false
-  }
-
-  // GitHub Token Management
-  saveToken() {
-    const token = this.tokenInput.value.trim()
-    if (token) {
-      this.githubToken = token
-      localStorage.setItem('thingy-github-token', token)
-      this.provider = new GitHubProvider(token)
-      this.tokenInput.value = ''
-      this.hideTokenInput()
-      this.showSyncUI()
-      this.enableChat()
-      this.startAutoSync()
-      this.syncNow()
+    switch (tab) {
+      case 'timer':
+        this.recordsSection.style.display = 'block'
+        this.historySection.style.display = 'block'
+        break
+      case 'history':
+        this.historySection.style.display = 'block'
+        break
+      case 'charts':
+        this.chartsSection.style.display = 'block'
+        this.updateStats()
+        break
+      case 'settings':
+        this.settingsSection.style.display = 'block'
+        break
     }
   }
 
-  logout() {
-    this.githubToken = null
-    this.gistId = null
-    this.provider = null
-    localStorage.removeItem('thingy-github-token')
-    localStorage.removeItem('thingy-gist-id')
-    localStorage.removeItem('thingy-last-sync')
-    this.stopAutoSync()
-    this.hideSyncUI()
-    this.messageInput.disabled = true
-    this.sendBtn.disabled = true
-    this.lastSync.textContent = 'Never synced'
+  applyTheme() {
+    document.body.className = this.settings.theme
   }
 
-  showSyncUI() {
-    this.connectPrompt.classList.add('hidden')
-    this.tokenInputSection.classList.add('hidden')
-    this.syncInfo.classList.remove('hidden')
-  }
+  generateScramble() {
+    const moves = ['R', 'L', 'U', 'D', 'F', 'B']
+    const suffixes = ['', "'", '2']
+    let scramble = []
 
-  hideSyncUI() {
-    this.connectPrompt.classList.remove('hidden')
-    this.tokenInputSection.classList.add('hidden')
-    this.syncInfo.classList.add('hidden')
-  }
+    let lastMove = ''
+    let lastAxis = ''
 
-  showTokenInput() {
-    this.connectPrompt.classList.add('hidden')
-    this.tokenInputSection.classList.remove('hidden')
-    this.tokenInput.focus()
-  }
+    for (let i = 0; i < 20; i++) {
+      let axis
+      do {
+        axis = Math.floor(Math.random() * 6)
+      } while (Math.floor(axis / 2) === Math.floor(lastAxis / 2))
 
-  hideTokenInput() {
-    this.tokenInputSection.classList.add('hidden')
-    this.connectPrompt.classList.remove('hidden')
-    this.tokenInput.value = ''
-  }
+      const move = moves[axis]
+      const suffix = suffixes[Math.floor(Math.random() * 3)]
 
-  toggleSettingsMenu() {
-    this.settingsMenu.classList.toggle('hidden')
-  }
-
-  hideSettingsMenu() {
-    this.settingsMenu.classList.add('hidden')
-  }
-
-  // Dialogs
-  showDeleteDialog() {
-    this.deleteDialog.classList.remove('hidden')
-  }
-
-  hideDeleteDialog() {
-    this.deleteDialog.classList.add('hidden')
-  }
-
-  confirmDelete() {
-    if (this.currentConversationId) {
-      this.deleteConversation(this.currentConversationId)
-    }
-  }
-
-  showLogoutDialog() {
-    this.logoutDialog.classList.remove('hidden')
-  }
-
-  hideLogoutDialog() {
-    this.logoutDialog.classList.add('hidden')
-  }
-
-  confirmLogout() {
-    this.logout()
-    this.hideLogoutDialog()
-  }
-
-  // Persistence
-  saveConversations() {
-    localStorage.setItem('thingy-conversations', JSON.stringify(this.conversations))
-    this.pendingChanges = true
-    
-    if (this.githubToken && navigator.onLine) {
-      this.syncNow()
-    }
-  }
-
-  // Gist Sync
-  async syncNow() {
-    if (!this.githubToken || this.isGenerating) return
-    
-    this.syncIndicator.classList.add('syncing')
-    
-    try {
-      await this.pullFromGist()
-      
-      if (this.pendingChanges) {
-        await this.pushToGist()
-      }
-      
-      this.lastSync.textContent = 'Synced ' + new Date().toLocaleTimeString()
-      this.pendingChanges = false
-    } catch (error) {
-      console.error('Sync failed:', error)
-      this.lastSync.textContent = 'Sync failed'
-    } finally {
-      this.syncIndicator.classList.remove('syncing')
-    }
-  }
-
-  async pullFromGist() {
-    if (!this.gistId) {
-      const gists = await this.getGists()
-      const thingyGist = gists.find(g => g.description === 'THINGY AI Chat Data')
-      
-      if (thingyGist) {
-        this.gistId = thingyGist.id
-        localStorage.setItem('thingy-gist-id', this.gistId)
+      if (move !== lastMove) {
+        scramble.push(move + suffix)
+        lastMove = move
+        lastAxis = axis
       } else {
-        return
+        i--
       }
     }
 
-    const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
-      headers: {
-        'Authorization': `token ${this.githubToken}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    })
+    this.currentScramble = scramble.join(' ')
+    this.scrambleDisplay.textContent = this.currentScramble
+  }
 
-    if (!response.ok) throw new Error('Failed to fetch gist')
-
-    const gist = await response.json()
-    const content = gist.files['conversations.json']?.content
-    
-    if (content) {
-      const remoteConversations = JSON.parse(content)
-      const remoteTimestamp = gist.updated_at
-      const localTimestamp = localStorage.getItem('thingy-last-sync')
-      
-      if (!localTimestamp || new Date(remoteTimestamp) > new Date(localTimestamp)) {
-        this.conversations = remoteConversations
-        this.saveToLocalOnly()
-        this.renderConversationsList()
-        if (this.currentConversationId) {
-          this.renderMessages()
-        }
-        localStorage.setItem('thingy-last-sync', remoteTimestamp)
-      }
+  handleTimerAction() {
+    if (this.timerState === 'idle') {
+      this.startInspection()
+    } else if (this.timerState === 'inspection') {
+      this.cancelInspection()
+    } else if (this.timerState === 'running') {
+      this.stopTimer()
     }
   }
 
-  async pushToGist() {
-    const content = JSON.stringify(this.conversations, null, 2)
-    
-    if (!this.gistId) {
-      const response = await fetch('https://api.github.com/gists', {
-        method: 'POST',
-        headers: {
-          'Authorization': `token ${this.githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          description: 'THINGY AI Chat Data',
-          public: false,
-          files: {
-            'conversations.json': { content }
-          }
-        })
-      })
+  startInspection() {
+    if (this.settings.inspectionTime > 0) {
+      this.timerState = 'inspection'
+      this.inspectionTime = this.settings.inspectionTime
+      this.inspectionCount.textContent = this.inspectionTime
+      this.inspectionWarning.classList.add('active')
+      this.timerDisplay.classList.add('inspection')
 
-      if (!response.ok) throw new Error('Failed to create gist')
+      this.inspectionInterval = setInterval(() => {
+        this.inspectionTime--
+        this.inspectionCount.textContent = this.inspectionTime
 
-      const gist = await response.json()
-      this.gistId = gist.id
-      localStorage.setItem('thingy-gist-id', this.gistId)
-      localStorage.setItem('thingy-last-sync', gist.updated_at)
+        if (this.inspectionTime < 0) {
+          this.inspectionCount.textContent = '+2'
+        }
+
+        if (this.inspectionTime < -2) {
+          this.cancelInspection()
+        }
+      }, 1000)
     } else {
-      const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `token ${this.githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          files: {
-            'conversations.json': { content }
-          }
-        })
-      })
-
-      if (!response.ok) throw new Error('Failed to update gist')
-
-      const gist = await response.json()
-      localStorage.setItem('thingy-last-sync', gist.updated_at)
+      this.startTimer()
     }
   }
 
-  async getGists() {
-    const response = await fetch('https://api.github.com/gists', {
-      headers: {
-        'Authorization': `token ${this.githubToken}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
+  cancelInspection() {
+    clearInterval(this.inspectionInterval)
+    this.inspectionWarning.classList.remove('active')
+    this.timerDisplay.classList.remove('inspection')
+    this.startTimer()
+  }
+
+  startTimer() {
+    this.timerState = 'running'
+    this.startTime = performance.now()
+    this.timerDisplay.classList.add('running')
+    this.startStopBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <rect x="6" y="4" width="4" height="16"/>
+        <rect x="14" y="4" width="4" height="16"/>
+      </svg>
+    `
+    this.startStopBtn.classList.add('stop')
+
+    this.timerInterval = setInterval(() => {
+      this.elapsedTime = (performance.now() - this.startTime) / 1000
+      this.timerDisplay.textContent = this.elapsedTime.toFixed(2)
+    }, 10)
+  }
+
+  stopTimer() {
+    clearInterval(this.timerInterval)
+
+    const solveTime = this.elapsedTime
+    const penalty = this.inspectionTime < 0 ? 2 : 0
+    const finalTime = solveTime + penalty
+
+    this.saveSolve({
+      time: finalTime,
+      scramble: this.currentScramble,
+      timestamp: new Date().toISOString(),
+      penalty: penalty,
+      rawTime: solveTime
     })
 
-    if (!response.ok) throw new Error('Failed to fetch gists')
-    return await response.json()
+    this.timerState = 'idle'
+    this.elapsedTime = 0
+    this.inspectionTime = 0
+    this.timerDisplay.classList.remove('running', 'inspection')
+    this.timerDisplay.textContent = '0.00'
+    this.inspectionWarning.classList.remove('active')
+    this.startStopBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="5,3 19,12 5,21"/>
+      </svg>
+    `
+    this.startStopBtn.classList.remove('stop')
+
+    this.generateScramble()
+    this.renderHistory()
+    this.renderRecords()
+    this.updateStats()
   }
 
-  saveToLocalOnly() {
-    localStorage.setItem('thingy-conversations', JSON.stringify(this.conversations))
+  saveSolve(solve) {
+    this.solves.push(solve)
+    this.saveSolves()
   }
 
-  startAutoSync() {
-    this.syncInterval = setInterval(() => this.syncNow(), 10000)
-  }
-
-  stopAutoSync() {
-    if (this.syncInterval) {
-      clearInterval(this.syncInterval)
-      this.syncInterval = null
+  formatTime(seconds) {
+    const mins = Math.floor(seconds / 60)
+    const secs = (seconds % 60).toFixed(2)
+    if (mins > 0) {
+      return `${mins}:${secs.padStart(5, '0')}`
     }
+    return secs
   }
 
-  // Utilities
-  escapeHtml(text) {
-    const div = document.createElement('div')
-    div.textContent = text
-    return div.innerHTML
+  formatDate(isoString) {
+    const date = new Date(isoString)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
 
-  async fetchUserInfo() {
-    if (!this.githubToken || this.githubUsername) return
+  calculateAverage(count) {
+    if (this.solves.length < count) return null
 
-    try {
-      const response = await fetch('https://api.github.com/user', {
-        headers: {
-          'Authorization': `token ${this.githubToken}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      })
+    const recent = this.solves.slice(-count)
+    const times = recent.map(s => s.time)
 
-      if (response.ok) {
-        const user = await response.json()
-        this.githubUsername = user.login
-        localStorage.setItem('thingy-github-username', user.login)
-      }
-    } catch (error) {
-      console.error('Failed to fetch user info:', error)
+    const max = Math.max(...times)
+    const min = Math.min(...times)
+
+    const filtered = times.filter(t => t !== max && t !== min)
+    const sum = filtered.reduce((a, b) => a + b, 0)
+
+    return sum / filtered.length
+  }
+
+  calculateSessionAverage() {
+    if (this.solves.length === 0) return null
+
+    const now = Date.now()
+    const oneHourAgo = now - 60 * 60 * 1000
+    const recentSolves = this.solves.filter(s => new Date(s.timestamp).getTime() > oneHourAgo)
+
+    if (recentSolves.length < 5) return null
+
+    const sum = recentSolves.reduce((a, b) => a + b.time, 0)
+    return sum / recentSolves.length
+  }
+
+  renderHistory() {
+    let displaySolves = [...this.solves]
+
+    if (this.currentFilter === 'last10') {
+      displaySolves = displaySolves.slice(-10)
+    } else if (this.currentFilter === 'last50') {
+      displaySolves = displaySolves.slice(-50)
     }
-  }
 
-  async fetchUsage() {
-    if (!this.githubToken || !this.githubUsername) return
+    displaySolves = displaySolves.reverse()
 
-    this.usageInfo.textContent = '...'
-    this.usageInfo.className = 'usage-info loading'
-
-    try {
-      const now = new Date()
-      const year = now.getFullYear()
-      const month = now.getMonth() + 1
-
-      const response = await fetch(
-        `https://api.github.com/users/${this.githubUsername}/settings/billing/usage?year=${year}&month=${month}`,
-        {
-          headers: {
-            'Authorization': `token ${this.githubToken}`,
-            'Accept': 'application/vnd.github.v3+json'
-          }
-        }
-      )
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          this.usageInfo.textContent = 'Token needs "Plan" permission'
-          this.usageInfo.className = 'usage-info warning'
-        } else {
-          this.usageInfo.textContent = '—'
-        }
-        return
-      }
-
-      const data = await response.json()
-      this.updateUsageDisplay(data)
-    } catch (error) {
-      console.error('Failed to fetch usage:', error)
-      this.usageInfo.textContent = '—'
-    }
-  }
-
-  updateUsageDisplay(data) {
-    if (!data || !data.usageItems) {
-      this.usageInfo.textContent = '—'
+    if (displaySolves.length === 0) {
+      this.historyList.innerHTML = `
+        <div style="text-align: center; padding: 32px; color: var(--text-secondary);">
+          No solves yet. Start the timer to begin!
+        </div>
+      `
       return
     }
 
-    let totalGross = 0
-    let totalDiscount = 0
-    let totalNet = 0
+    const bestTime = Math.min(...this.solves.map(s => s.time))
 
-    for (const item of data.usageItems) {
-      totalGross += parseFloat(item.grossAmount || 0)
-      totalDiscount += parseFloat(item.discountAmount || 0)
-      totalNet += parseFloat(item.netAmount || 0)
-    }
-
-    const includedCredits = 5.00
-    const remainingCredits = Math.max(0, includedCredits - totalNet)
-    const usagePercent = (totalNet / includedCredits) * 100
-
-    let statusClass = 'ok'
-    let statusText = ''
-
-    if (usagePercent >= 100) {
-      statusClass = 'danger'
-      statusText = `$${totalNet.toFixed(2)} used`
-    } else if (usagePercent >= 75) {
-      statusClass = 'warning'
-      statusText = `$${totalNet.toFixed(2)}/$${includedCredits}`
-    } else {
-      statusText = `$${totalNet.toFixed(2)}`
-    }
-
-    this.usageInfo.textContent = statusText
-    this.usageInfo.className = `usage-info ${statusClass}`
-
-    localStorage.setItem('thingy-usage-data', JSON.stringify({
-      lastUpdated: new Date().toISOString(),
-      totalGross,
-      totalDiscount,
-      totalNet,
-      remainingCredits
-    }))
+    this.historyList.innerHTML = displaySolves.map((solve, index) => {
+      const isBest = solve.time === bestTime && this.solves.length > 10
+      return `
+        <div class="history-item ${isBest ? 'best' : ''}">
+          <span class="history-time">${this.formatTime(solve.time)}</span>
+          <span class="history-date">${this.formatDate(solve.timestamp)}</span>
+          <span class="history-scramble">${solve.scramble}</span>
+        </div>
+      `
+    }).join('')
   }
 
-  registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./service-worker.js')
-        .then(registration => {
-          console.log('Service Worker registered:', registration)
-        })
-        .catch(error => {
-          console.log('Service Worker registration failed:', error)
-        })
+  renderRecords() {
+    const single = this.solves.length > 0 ? Math.min(...this.solves.map(s => s.time)) : null
+    const ao5 = this.calculateAverage(5)
+    const ao12 = this.calculateAverage(12)
+    const ao50 = this.calculateAverage(50)
+
+    const singleRecord = localStorage.getItem('cube-timer-single-record')
+    const ao5Record = localStorage.getItem('cube-timer-ao5-record')
+    const ao12Record = localStorage.getItem('cube-timer-ao12-record')
+    const ao50Record = localStorage.getItem('cube-timer-ao50-record')
+
+    document.getElementById('singleRecord').textContent = single ? this.formatTime(single) : '--'
+    document.getElementById('ao5Record').textContent = ao5 ? this.formatTime(ao5) : '--'
+    document.getElementById('ao12Record').textContent = ao12 ? this.formatTime(ao12) : '--'
+    document.getElementById('ao50Record').textContent = ao50 ? this.formatTime(ao50) : '--'
+
+    if (single && (!singleRecord || single < parseFloat(singleRecord))) {
+      localStorage.setItem('cube-timer-single-record', single)
+      document.getElementById('singleRecord').textContent = this.formatTime(single)
+      document.getElementById('singleDate').textContent = 'New Record!'
     }
+
+    if (ao5 && (!ao5Record || ao5 < parseFloat(ao5Record))) {
+      localStorage.setItem('cube-timer-ao5-record', ao5)
+      document.getElementById('ao5Record').textContent = this.formatTime(ao5)
+      document.getElementById('ao5Date').textContent = 'New Record!'
+    }
+
+    if (ao12 && (!ao12Record || ao12 < parseFloat(ao12Record))) {
+      localStorage.setItem('cube-timer-ao12-record', ao12)
+      document.getElementById('ao12Record').textContent = this.formatTime(ao12)
+      document.getElementById('ao12Date').textContent = 'New Record!'
+    }
+
+    if (ao50 && (!ao50Record || ao50 < parseFloat(ao50Record))) {
+      localStorage.setItem('cube-timer-ao50-record', ao50)
+      document.getElementById('ao50Record').textContent = this.formatTime(ao50)
+      document.getElementById('ao50Date').textContent = 'New Record!'
+    }
+  }
+
+  updateStats() {
+    document.getElementById('totalSolves').textContent = this.solves.length
+
+    if (this.solves.length > 0) {
+      const avg = this.solves.reduce((a, b) => a + b.time, 0) / this.solves.length
+      document.getElementById('totalAverage').textContent = this.formatTime(avg)
+
+      const sessionAvg = this.calculateSessionAverage()
+      document.getElementById('bestSession').textContent = sessionAvg ? this.formatTime(sessionAvg) : '--'
+    } else {
+      document.getElementById('totalAverage').textContent = '--'
+      document.getElementById('bestSession').textContent = '--'
+    }
+
+    this.drawTimeChart()
+    this.drawDistributionChart()
+  }
+
+  drawTimeChart() {
+    const canvas = this.timeChart
+    const ctx = canvas.getContext('2d')
+    const dpr = window.devicePixelRatio || 1
+
+    canvas.width = canvas.offsetWidth * dpr
+    canvas.height = canvas.offsetHeight * dpr
+    ctx.scale(dpr, dpr)
+
+    ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight)
+
+    if (this.solves.length < 2) {
+      ctx.fillStyle = '#8892b0'
+      ctx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('Need at least 2 solves for chart', canvas.offsetWidth / 2, canvas.offsetHeight / 2)
+      return
+    }
+
+    const recentSolves = this.solves.slice(-50)
+    const times = recentSolves.map(s => s.time)
+    const maxTime = Math.max(...times) * 1.1
+    const minTime = Math.min(...times) * 0.9
+
+    const padding = 40
+    const chartWidth = canvas.offsetWidth - padding * 2
+    const chartHeight = canvas.offsetHeight - padding * 2
+
+    ctx.strokeStyle = '#2d3a5c'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+
+    times.forEach((time, i) => {
+      const x = padding + (i / (times.length - 1)) * chartWidth
+      const y = canvas.offsetHeight - padding - ((time - minTime) / (maxTime - minTime)) * chartHeight
+
+      if (i === 0) {
+        ctx.moveTo(x, y)
+      } else {
+        ctx.lineTo(x, y)
+      }
+    })
+
+    ctx.stroke()
+
+    ctx.fillStyle = '#e94560'
+    times.forEach((time, i) => {
+      const x = padding + (i / (times.length - 1)) * chartWidth
+      const y = canvas.offsetHeight - padding - ((time - minTime) / (maxTime - minTime)) * chartHeight
+
+      ctx.beginPath()
+      ctx.arc(x, y, 4, 0, Math.PI * 2)
+      ctx.fill()
+    })
+
+    ctx.fillStyle = '#8892b0'
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif'
+    ctx.textAlign = 'left'
+
+    ctx.fillText(this.formatTime(maxTime), padding, padding)
+    ctx.fillText(this.formatTime(minTime), padding, canvas.offsetHeight - padding + 15)
+  }
+
+  drawDistributionChart() {
+    const canvas = this.distributionChart
+    const ctx = canvas.getContext('2d')
+    const dpr = window.devicePixelRatio || 1
+
+    canvas.width = canvas.offsetWidth * dpr
+    canvas.height = canvas.offsetHeight * dpr
+    ctx.scale(dpr, dpr)
+
+    ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight)
+
+    if (this.solves.length < 5) {
+      ctx.fillStyle = '#8892b0'
+      ctx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('Need at least 5 solves for distribution', canvas.offsetWidth / 2, canvas.offsetHeight / 2)
+      return
+    }
+
+    const times = this.solves.map(s => s.time)
+    const minTime = Math.min(...times)
+    const maxTime = Math.max(...times)
+    const range = maxTime - minTime
+
+    const bucketCount = 10
+    const bucketSize = range / bucketCount || 1
+
+    const buckets = new Array(bucketCount).fill(0)
+    times.forEach(time => {
+      const bucketIndex = Math.min(Math.floor((time - minTime) / bucketSize), bucketCount - 1)
+      buckets[bucketIndex]++
+    })
+
+    const maxBucket = Math.max(...buckets)
+    const padding = 40
+    const chartWidth = canvas.offsetWidth - padding * 2
+    const chartHeight = canvas.offsetHeight - padding * 2
+    const barWidth = chartWidth / bucketCount - 4
+
+    buckets.forEach((count, i) => {
+      const x = padding + i * (chartWidth / bucketCount) + 2
+      const barHeight = (count / maxBucket) * chartHeight
+      const y = canvas.offsetHeight - padding - barHeight
+
+      const gradient = ctx.createLinearGradient(x, y, x, canvas.offsetHeight - padding)
+      gradient.addColorStop(0, '#e94560')
+      gradient.addColorStop(1, '#c73e54')
+
+      ctx.fillStyle = gradient
+      ctx.beginPath()
+      ctx.roundRect(x, y, barWidth, barHeight, 4)
+      ctx.fill()
+
+      ctx.fillStyle = '#8892b0'
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.textAlign = 'center'
+      const bucketTime = minTime + (i + 0.5) * bucketSize
+      ctx.fillText(this.formatTime(bucketTime), x + barWidth / 2, canvas.offsetHeight - padding + 15)
+
+      if (count > 0) {
+        ctx.fillStyle = '#eaeaea'
+        ctx.fillText(count, x + barWidth / 2, y - 6)
+      }
+    })
   }
 }
 
-// Initialize
-const app = new ChatApp()
+const timer = new CubeTimer()

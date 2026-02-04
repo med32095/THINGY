@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thingy-chat-v3';
+const CACHE_NAME = 'cube-timer-v1';
 const urlsToCache = [
   './',
   './index.html',
@@ -19,7 +19,7 @@ self.addEventListener('install', event => {
 
 self.addEventListener('fetch', event => {
   const requestUrl = new URL(event.request.url);
-  
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
