@@ -2,6 +2,11 @@ class TodoApp {
   constructor() {
     this.todos = JSON.parse(localStorage.getItem('thingy-todos')) || [];
     this.currentFilter = 'all';
+    this.githubToken = localStorage.getItem('thingy-github-token');
+    this.gistId = localStorage.getItem('thingy-gist-id');
+    this.syncInterval = null;
+    this.isSyncing = false;
+    this.pendingChanges = false;
     
     this.todoInput = document.getElementById('todoInput');
     this.addBtn = document.getElementById('addBtn');
@@ -9,6 +14,12 @@ class TodoApp {
     this.itemsLeft = document.getElementById('itemsLeft');
     this.clearCompleted = document.getElementById('clearCompleted');
     this.filterBtns = document.querySelectorAll('.filter-btn');
+    this.githubLoginBtn = document.getElementById('githubLogin');
+    this.syncInfo = document.getElementById('syncInfo');
+    this.lastSync = document.getElementById('lastSync');
+    this.syncIndicator = document.getElementById('syncIndicator');
+    this.syncNowBtn = document.getElementById('syncNow');
+    this.logoutBtn = document.getElementById('logoutBtn');
     
     this.init();
   }
@@ -29,6 +40,19 @@ class TodoApp {
     });
     
     this.clearCompleted.addEventListener('click', () => this.clearCompletedTodos());
+    this.githubLoginBtn.addEventListener('click', () => this.loginWithGitHub());
+    this.syncNowBtn.addEventListener('click', () => this.syncNow());
+    this.logoutBtn.addEventListener('click', () => this.logout());
+    
+    // Check for OAuth callback
+    this.handleOAuthCallback();
+    
+    // Initialize sync if already logged in
+    if (this.githubToken) {
+      this.showSyncUI();
+      this.startAutoSync();
+      this.syncNow();
+    }
     
     this.render();
     this.registerServiceWorker();
@@ -130,6 +154,220 @@ class TodoApp {
         .catch(error => {
           console.log('Service Worker registration failed:', error);
         });
+    }
+  }
+
+  // GitHub OAuth Methods
+  loginWithGitHub() {
+    const clientId = 'YOUR_GITHUB_CLIENT_ID'; // You'll need to create a GitHub OAuth app
+    const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
+    const scope = 'gist';
+    const state = Math.random().toString(36).substring(7);
+    
+    localStorage.setItem('thingy-oauth-state', state);
+    
+    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`;
+    window.location.href = authUrl;
+  }
+
+  handleOAuthCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    const savedState = localStorage.getItem('thingy-oauth-state');
+    
+    if (code && state === savedState) {
+      // Exchange code for token (you'll need a backend or use a service like auth0)
+      // For now, we'll simulate this - in production, you'd need a server
+      console.log('GitHub OAuth code received:', code);
+      // Clear the URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+      localStorage.removeItem('thingy-oauth-state');
+    }
+  }
+
+  // Manual token entry for testing (since we need a backend for OAuth)
+  setGitHubToken(token) {
+    this.githubToken = token;
+    localStorage.setItem('thingy-github-token', token);
+    this.showSyncUI();
+    this.startAutoSync();
+    this.syncNow();
+  }
+
+  logout() {
+    this.githubToken = null;
+    this.gistId = null;
+    localStorage.removeItem('thingy-github-token');
+    localStorage.removeItem('thingy-gist-id');
+    this.stopAutoSync();
+    this.hideSyncUI();
+  }
+
+  showSyncUI() {
+    this.githubLoginBtn.classList.add('hidden');
+    this.syncInfo.classList.remove('hidden');
+  }
+
+  hideSyncUI() {
+    this.githubLoginBtn.classList.remove('hidden');
+    this.syncInfo.classList.add('hidden');
+  }
+
+  // Gist Sync Methods
+  async syncNow() {
+    if (!this.githubToken || this.isSyncing) return;
+    
+    this.isSyncing = true;
+    this.syncIndicator.classList.add('syncing');
+    
+    try {
+      // First, pull from Gist
+      await this.pullFromGist();
+      
+      // Then push if we have pending changes
+      if (this.pendingChanges) {
+        await this.pushToGist();
+      }
+      
+      this.lastSync.textContent = 'Synced ' + new Date().toLocaleTimeString();
+      this.pendingChanges = false;
+    } catch (error) {
+      console.error('Sync failed:', error);
+      this.lastSync.textContent = 'Sync failed - offline?';
+    } finally {
+      this.isSyncing = false;
+      this.syncIndicator.classList.remove('syncing');
+    }
+  }
+
+  async pullFromGist() {
+    if (!this.gistId) {
+      // Try to find existing gist
+      const gists = await this.getGists();
+      const thingyGist = gists.find(g => g.description === 'THINGY Todo App Data');
+      
+      if (thingyGist) {
+        this.gistId = thingyGist.id;
+        localStorage.setItem('thingy-gist-id', this.gistId);
+      } else {
+        return; // No gist yet, will create on push
+      }
+    }
+
+    const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
+      headers: {
+        'Authorization': `token ${this.githubToken}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch gist');
+
+    const gist = await response.json();
+    const content = gist.files['todos.json']?.content;
+    
+    if (content) {
+      const remoteTodos = JSON.parse(content);
+      const remoteTimestamp = gist.updated_at;
+      const localTimestamp = localStorage.getItem('thingy-last-sync');
+      
+      // Merge strategy: keep newer data
+      if (!localTimestamp || new Date(remoteTimestamp) > new Date(localTimestamp)) {
+        this.todos = remoteTodos;
+        this.saveTodos();
+        this.render();
+        localStorage.setItem('thingy-last-sync', remoteTimestamp);
+      }
+    }
+  }
+
+  async pushToGist() {
+    const content = JSON.stringify(this.todos, null, 2);
+    
+    if (!this.gistId) {
+      // Create new gist
+      const response = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${this.githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          description: 'THINGY Todo App Data',
+          public: false,
+          files: {
+            'todos.json': {
+              content: content
+            }
+          }
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to create gist');
+
+      const gist = await response.json();
+      this.gistId = gist.id;
+      localStorage.setItem('thingy-gist-id', this.gistId);
+      localStorage.setItem('thingy-last-sync', gist.updated_at);
+    } else {
+      // Update existing gist
+      const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `token ${this.githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          files: {
+            'todos.json': {
+              content: content
+            }
+          }
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to update gist');
+
+      const gist = await response.json();
+      localStorage.setItem('thingy-last-sync', gist.updated_at);
+    }
+  }
+
+  async getGists() {
+    const response = await fetch('https://api.github.com/gists', {
+      headers: {
+        'Authorization': `token ${this.githubToken}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch gists');
+    return await response.json();
+  }
+
+  startAutoSync() {
+    // Sync every 10 seconds (GitHub API rate limit is 5000/hour)
+    this.syncInterval = setInterval(() => this.syncNow(), 10000);
+  }
+
+  stopAutoSync() {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+    }
+  }
+
+  // Override saveTodos to trigger sync
+  saveTodos() {
+    localStorage.setItem('thingy-todos', JSON.stringify(this.todos));
+    this.pendingChanges = true;
+    
+    // If online, sync immediately
+    if (this.githubToken && navigator.onLine) {
+      this.syncNow();
     }
   }
 }
