@@ -14,14 +14,27 @@ class TodoApp {
     this.itemsLeft = document.getElementById('itemsLeft');
     this.clearCompleted = document.getElementById('clearCompleted');
     this.filterBtns = document.querySelectorAll('.filter-btn');
+    
+    // Sync UI elements
+    this.connectPrompt = document.getElementById('connectPrompt');
+    this.showTokenBtn = document.getElementById('showTokenBtn');
     this.tokenInputSection = document.getElementById('tokenInputSection');
     this.tokenInput = document.getElementById('tokenInput');
     this.saveTokenBtn = document.getElementById('saveTokenBtn');
+    this.cancelTokenBtn = document.getElementById('cancelTokenBtn');
     this.syncInfo = document.getElementById('syncInfo');
     this.lastSync = document.getElementById('lastSync');
     this.syncIndicator = document.getElementById('syncIndicator');
     this.syncNowBtn = document.getElementById('syncNow');
-    this.logoutBtn = document.getElementById('logoutBtn');
+    
+    // Settings menu
+    this.settingsBtn = document.getElementById('settingsBtn');
+    this.settingsMenu = document.getElementById('settingsMenu');
+    
+    // Logout dialog
+    this.logoutDialog = document.getElementById('logoutDialog');
+    this.cancelLogoutBtn = document.getElementById('cancelLogout');
+    this.confirmLogoutBtn = document.getElementById('confirmLogout');
     
     this.init();
   }
@@ -42,12 +55,36 @@ class TodoApp {
     });
     
     this.clearCompleted.addEventListener('click', () => this.clearCompletedTodos());
+    
+    // Token input events
+    this.showTokenBtn.addEventListener('click', () => this.showTokenInput());
     this.saveTokenBtn.addEventListener('click', () => this.saveToken());
+    this.cancelTokenBtn.addEventListener('click', () => this.hideTokenInput());
     this.tokenInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') this.saveToken();
     });
-    this.syncNowBtn.addEventListener('click', () => this.syncNow());
-    this.logoutBtn.addEventListener('click', () => this.logout());
+    
+    // Settings menu events
+    this.settingsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleSettingsMenu();
+    });
+    this.syncNowBtn.addEventListener('click', () => {
+      this.syncNow();
+      this.hideSettingsMenu();
+    });
+    
+    // Logout dialog events
+    this.settingsMenu.querySelector('#logoutBtn').addEventListener('click', () => {
+      this.showLogoutDialog();
+      this.hideSettingsMenu();
+    });
+    this.cancelLogoutBtn.addEventListener('click', () => this.hideLogoutDialog());
+    this.confirmLogoutBtn.addEventListener('click', () => this.confirmLogout());
+    
+    // Close settings menu when clicking outside
+    document.addEventListener('click', () => this.hideSettingsMenu());
+    this.settingsMenu.addEventListener('click', (e) => e.stopPropagation());
     
     // Initialize sync if already logged in
     if (this.githubToken) {
@@ -181,18 +218,55 @@ class TodoApp {
     this.gistId = null;
     localStorage.removeItem('thingy-github-token');
     localStorage.removeItem('thingy-gist-id');
+    localStorage.removeItem('thingy-last-sync');
     this.stopAutoSync();
     this.hideSyncUI();
+    this.lastSync.textContent = 'Never synced';
   }
 
   showSyncUI() {
+    this.connectPrompt.classList.add('hidden');
     this.tokenInputSection.classList.add('hidden');
     this.syncInfo.classList.remove('hidden');
   }
 
   hideSyncUI() {
-    this.tokenInputSection.classList.remove('hidden');
+    this.connectPrompt.classList.remove('hidden');
+    this.tokenInputSection.classList.add('hidden');
     this.syncInfo.classList.add('hidden');
+  }
+
+  showTokenInput() {
+    this.connectPrompt.classList.add('hidden');
+    this.tokenInputSection.classList.remove('hidden');
+    this.tokenInput.focus();
+  }
+
+  hideTokenInput() {
+    this.tokenInputSection.classList.add('hidden');
+    this.connectPrompt.classList.remove('hidden');
+    this.tokenInput.value = '';
+  }
+
+  toggleSettingsMenu() {
+    this.settingsMenu.classList.toggle('hidden');
+  }
+
+  hideSettingsMenu() {
+    this.settingsMenu.classList.add('hidden');
+  }
+
+  showLogoutDialog() {
+    this.logoutDialog.classList.remove('hidden');
+  }
+
+  hideLogoutDialog() {
+    this.logoutDialog.classList.add('hidden');
+  }
+
+  confirmLogout() {
+    this.logout();
+    this.hideLogoutDialog();
   }
 
   // Gist Sync Methods

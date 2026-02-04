@@ -15,15 +15,48 @@
             <h1>THINGY</h1>
             <p class="subtitle">Your personal todo app</p>
             <div id="syncStatus" class="sync-status">
-                <div id="tokenInputSection" class="token-input-section">
+                <!-- Not logged in state -->
+                <div id="connectPrompt" class="connect-prompt">
+                    <span class="sync-icon">☁️</span>
+                    <span class="sync-text">Connect to GitHub to sync</span>
+                    <button id="showTokenBtn" class="connect-btn">Connect</button>
+                </div>
+                
+                <!-- Token input modal/section -->
+                <div id="tokenInputSection" class="token-input-section hidden">
                     <input type="password" id="tokenInput" placeholder="Paste GitHub token here..." class="token-input">
                     <button id="saveTokenBtn" class="save-token-btn">Connect</button>
+                    <button id="cancelTokenBtn" class="cancel-token-btn">Cancel</button>
                 </div>
+                
+                <!-- Logged in state -->
                 <div id="syncInfo" class="sync-info hidden">
                     <span id="syncIndicator" class="sync-indicator">🔄</span>
                     <span id="lastSync">Never synced</span>
-                    <button id="syncNow" class="sync-now-btn" title="Sync now">↻</button>
-                    <button id="logoutBtn" class="logout-btn" title="Logout">✕</button>
+                    <div class="sync-menu-container">
+                        <button id="settingsBtn" class="settings-btn" title="Settings">⋮</button>
+                        <div id="settingsMenu" class="settings-menu hidden">
+                            <button id="syncNow" class="menu-item">
+                                <span>↻</span> Sync now
+                            </button>
+                            <div class="menu-divider"></div>
+                            <button id="logoutBtn" class="menu-item menu-item-danger">
+                                <span>✕</span> Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Logout Confirmation Dialog -->
+            <div id="logoutDialog" class="dialog-overlay hidden">
+                <div class="dialog">
+                    <h3>Logout?</h3>
+                    <p>Are you sure you want to logout? Your todos will remain on this device but will no longer sync with GitHub.</p>
+                    <div class="dialog-buttons">
+                        <button id="cancelLogout" class="dialog-btn dialog-btn-secondary">Cancel</button>
+                        <button id="confirmLogout" class="dialog-btn dialog-btn-danger">Logout</button>
+                    </div>
                 </div>
             </div>
         </header>
