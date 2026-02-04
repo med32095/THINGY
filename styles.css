@@ -1,0 +1,268 @@
+:root {
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  --radius: 12px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.container {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.input-section {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+#todoInput {
+  flex: 1;
+  padding: 14px 18px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 16px;
+  background: var(--surface);
+  transition: border-color 0.2s;
+}
+
+#todoInput:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+#addBtn {
+  width: 50px;
+  height: 50px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#addBtn:hover {
+  background: var(--primary-dark);
+}
+
+#addBtn:active {
+  transform: scale(0.95);
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  justify-content: center;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  background: var(--border);
+}
+
+.filter-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
+#todoList {
+  list-style: none;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.todo-item:last-child {
+  border-bottom: none;
+}
+
+.todo-item.completed .todo-text {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.todo-checkbox {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.todo-checkbox:hover {
+  border-color: var(--primary);
+}
+
+.todo-item.completed .todo-checkbox {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.todo-checkbox::after {
+  content: '✓';
+  color: white;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.todo-item.completed .todo-checkbox::after {
+  opacity: 1;
+}
+
+.todo-text {
+  flex: 1;
+  font-size: 16px;
+  word-break: break-word;
+}
+
+.delete-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.todo-item:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding: 0 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+#clearCompleted {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+
+#clearCompleted:hover {
+  color: var(--primary);
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 16px;
+  }
+  
+  h1 {
+    font-size: 2rem;
+  }
+  
+  .delete-btn {
+    opacity: 1;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
