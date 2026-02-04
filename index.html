@@ -4,79 +4,121 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#6366f1">
-    <title>THINGY - Todo App</title>
+    <title>THINGY - AI Chat</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192x192.svg">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>THINGY</h1>
-            <p class="subtitle">Your personal todo app</p>
-            <div id="syncStatus" class="sync-status">
-                <!-- Not logged in state -->
-                <div id="connectPrompt" class="connect-prompt">
-                    <span class="sync-icon">☁️</span>
-                    <span class="sync-text">Connect to GitHub to sync</span>
-                    <button id="showTokenBtn" class="connect-btn">Connect</button>
-                </div>
-                
-                <!-- Token input modal/section -->
-                <div id="tokenInputSection" class="token-input-section hidden">
-                    <input type="password" id="tokenInput" placeholder="Paste GitHub token here..." class="token-input">
-                    <button id="saveTokenBtn" class="save-token-btn">Connect</button>
-                    <button id="cancelTokenBtn" class="cancel-token-btn">Cancel</button>
-                </div>
-                
-                <!-- Logged in state -->
-                <div id="syncInfo" class="sync-info hidden">
-                    <span id="syncIndicator" class="sync-indicator">🔄</span>
-                    <span id="lastSync">Never synced</span>
-                    <div class="sync-menu-container">
-                        <button id="settingsBtn" class="settings-btn" title="Settings">⋮</button>
-                        <div id="settingsMenu" class="settings-menu hidden">
-                            <button id="syncNow" class="menu-item">
-                                <span>↻</span> Sync now
-                            </button>
-                            <div class="menu-divider"></div>
-                            <button id="logoutBtn" class="menu-item menu-item-danger">
-                                <span>✕</span> Logout
-                            </button>
-                        </div>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>THINGY</h1>
+                <button id="newChatBtn" class="new-chat-btn" title="New Chat">
+                    <span>+</span> New Chat
+                </button>
+            </div>
+            
+            <div class="conversations-list" id="conversationsList">
+                <!-- Conversations will be rendered here -->
+            </div>
+            
+            <div class="sidebar-footer">
+                <div id="syncStatus" class="sync-status">
+                    <div id="connectPrompt" class="connect-prompt">
+                        <span class="sync-icon">☁️</span>
+                        <button id="showTokenBtn" class="connect-btn">Connect GitHub</button>
                     </div>
+                    
+                    <div id="tokenInputSection" class="token-input-section hidden">
+                        <input type="password" id="tokenInput" placeholder="GitHub token...">
+                        <button id="saveTokenBtn">Connect</button>
+                        <button id="cancelTokenBtn">Cancel</button>
+                    </div>
+                    
+                    <div id="syncInfo" class="sync-info hidden">
+                        <span id="syncIndicator" class="sync-indicator">🔄</span>
+                        <span id="lastSync">Never synced</span>
+                        <button id="settingsBtn" class="settings-btn">⚙️</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Chat Area -->
+        <main class="chat-container">
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state">
+                <div class="empty-state-icon">🧠</div>
+                <h2>THINGY AI</h2>
+                <p>Start a new conversation or select one from the sidebar</p>
+            </div>
+            
+            <!-- Messages Area -->
+            <div id="messagesArea" class="messages-area hidden">
+                <div class="messages-header">
+                    <h2 id="conversationTitle">New Chat</h2>
+                    <button id="deleteChatBtn" class="delete-chat-btn" title="Delete Chat">🗑️</button>
+                </div>
+                <div id="messagesList" class="messages-list">
+                    <!-- Messages will be rendered here -->
                 </div>
             </div>
             
-            <!-- Logout Confirmation Dialog -->
-            <div id="logoutDialog" class="dialog-overlay hidden">
-                <div class="dialog">
-                    <h3>Logout?</h3>
-                    <p>Are you sure you want to logout? Your todos will remain on this device but will no longer sync with GitHub.</p>
-                    <div class="dialog-buttons">
-                        <button id="cancelLogout" class="dialog-btn dialog-btn-secondary">Cancel</button>
-                        <button id="confirmLogout" class="dialog-btn dialog-btn-danger">Logout</button>
-                    </div>
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-container">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="Message THINGY..." 
+                        rows="1"
+                        disabled
+                    ></textarea>
+                    <button id="sendBtn" class="send-btn" disabled>
+                        <span>➤</span>
+                    </button>
+                </div>
+                <div class="input-footer">
+                    <span id="modelInfo">GitHub Models</span>
+                    <span id="typingIndicator" class="typing-indicator hidden">THINGY is typing...</span>
                 </div>
             </div>
-        </header>
+        </main>
         
-        <div class="input-section">
-            <input type="text" id="todoInput" placeholder="Add a new task..." autocomplete="off">
-            <button id="addBtn" aria-label="Add task">+</button>
+        <!-- Settings Menu -->
+        <div id="settingsMenu" class="settings-menu hidden">
+            <button id="syncNow" class="menu-item">
+                <span>↻</span> Sync now
+            </button>
+            <div class="menu-divider"></div>
+            <button id="logoutBtn" class="menu-item menu-item-danger">
+                <span>✕</span> Logout
+            </button>
         </div>
         
-        <div class="filters">
-            <button class="filter-btn active" data-filter="all">All</button>
-            <button class="filter-btn" data-filter="active">Active</button>
-            <button class="filter-btn" data-filter="completed">Completed</button>
+        <!-- Delete Confirmation Dialog -->
+        <div id="deleteDialog" class="dialog-overlay hidden">
+            <div class="dialog">
+                <h3>Delete Conversation?</h3>
+                <p>This will permanently delete this conversation. This action cannot be undone.</p>
+                <div class="dialog-buttons">
+                    <button id="cancelDelete" class="dialog-btn dialog-btn-secondary">Cancel</button>
+                    <button id="confirmDelete" class="dialog-btn dialog-btn-danger">Delete</button>
+                </div>
+            </div>
         </div>
         
-        <ul id="todoList"></ul>
-        
-        <div class="stats">
-            <span id="itemsLeft">0 items left</span>
-            <button id="clearCompleted">Clear completed</button>
+        <!-- Logout Confirmation Dialog -->
+        <div id="logoutDialog" class="dialog-overlay hidden">
+            <div class="dialog">
+                <h3>Logout?</h3>
+                <p>Are you sure you want to logout? Your conversations will remain on this device but will no longer sync with GitHub.</p>
+                <div class="dialog-buttons">
+                    <button id="cancelLogout" class="dialog-btn dialog-btn-secondary">Cancel</button>
+                    <button id="confirmLogout" class="dialog-btn dialog-btn-danger">Logout</button>
+                </div>
+            </div>
         </div>
     </div>
     

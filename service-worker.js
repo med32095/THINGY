@@ -1,12 +1,12 @@
-const CACHE_NAME = 'thingy-v1';
+const CACHE_NAME = 'thingy-chat-v1';
 const urlsToCache = [
-  '/THINGY/',
-  '/THINGY/index.html',
-  '/THINGY/styles.css',
-  '/THINGY/app.js',
-  '/THINGY/manifest.json',
-  '/THINGY/icons/icon-192x192.svg',
-  '/THINGY/icons/icon-512x512.svg'
+  '/',
+  '/index.html',
+  '/styles.css',
+  '/app.js',
+  '/manifest.json',
+  '/icons/icon-192x192.svg',
+  '/icons/icon-512x512.svg'
 ];
 
 self.addEventListener('install', event => {

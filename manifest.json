@@ -1,13 +1,13 @@
 {
-  "name": "THINGY",
+  "name": "THINGY - AI Chat",
   "short_name": "THINGY",
-  "description": "A simple offline todo app",
-  "start_url": "/THINGY/",
+  "description": "A browser-based AI chat app with GitHub sync",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#6366f1",
   "theme_color": "#6366f1",
   "orientation": "portrait-primary",
-  "scope": "/THINGY/",
+  "scope": "/",
   "icons": [
     {
       "src": "icons/icon-192x192.svg",
