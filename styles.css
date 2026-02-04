@@ -619,13 +619,47 @@ body {
 }
 
 .input-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  padding: 0 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 0 4px;
+}
+
+.footer-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.usage-info {
+    font-weight: 500;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.usage-info:hover {
+    background: var(--bg);
+}
+
+.usage-info.loading {
+    opacity: 0.6;
+}
+
+.usage-info.ok {
+    color: #16a34a;
+}
+
+.usage-info.warning {
+    color: #ca8a04;
+}
+
+.usage-info.danger {
+    color: #dc2626;
 }
 
 .typing-indicator {

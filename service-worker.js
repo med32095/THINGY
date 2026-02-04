@@ -1,12 +1,12 @@
-const CACHE_NAME = 'thingy-chat-v1';
+const CACHE_NAME = 'thingy-chat-v3';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/app.js',
-  '/manifest.json',
-  '/icons/icon-192x192.svg',
-  '/icons/icon-512x512.svg'
+  './',
+  './index.html',
+  './styles.css',
+  './app.js',
+  './manifest.json',
+  './icons/icon-192x192.svg',
+  './icons/icon-512x512.svg'
 ];
 
 self.addEventListener('install', event => {
@@ -18,13 +18,26 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  const requestUrl = new URL(event.request.url);
+  
   event.respondWith(
     caches.match(event.request)
       .then(response => {
         if (response) {
           return response;
         }
-        return fetch(event.request);
+        return fetch(event.request).then(fetchResponse => {
+          if (fetchResponse.ok && event.request.url.startsWith(self.location.origin)) {
+            const responseClone = fetchResponse.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return fetchResponse;
+        });
+      })
+      .catch(() => {
+        return caches.match('./index.html');
       })
   );
 });

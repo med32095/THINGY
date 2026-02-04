@@ -98,6 +98,8 @@ class ChatApp {
     this.messageInput = document.getElementById('messageInput')
     this.sendBtn = document.getElementById('sendBtn')
     this.typingIndicator = document.getElementById('typingIndicator')
+    this.usageInfo = document.getElementById('usageInfo')
+    this.githubUsername = localStorage.getItem('thingy-github-username')
     
     // DOM Elements - Dialogs
     this.deleteDialog = document.getElementById('deleteDialog')
@@ -166,6 +168,12 @@ class ChatApp {
       }
     })
     
+    this.usageInfo.addEventListener('click', () => {
+      if (this.githubToken && this.githubUsername) {
+        this.fetchUsage()
+      }
+    })
+    
     this.deleteChatBtn.addEventListener('click', () => this.showDeleteDialog())
     
     // Dialog events
@@ -186,6 +194,8 @@ class ChatApp {
       this.enableChat()
       this.startAutoSync()
       this.syncNow()
+      this.fetchUserInfo()
+      this.fetchUsage()
     }
     
     this.renderConversationsList()
@@ -325,6 +335,7 @@ class ChatApp {
       
       conversation.updatedAt = new Date().toISOString()
       this.saveConversations()
+      this.fetchUsage()
       
     } catch (error) {
       console.error('Generation error:', error)
@@ -707,9 +718,114 @@ class ChatApp {
     return div.innerHTML
   }
 
+  async fetchUserInfo() {
+    if (!this.githubToken || this.githubUsername) return
+
+    try {
+      const response = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `token ${this.githubToken}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      })
+
+      if (response.ok) {
+        const user = await response.json()
+        this.githubUsername = user.login
+        localStorage.setItem('thingy-github-username', user.login)
+      }
+    } catch (error) {
+      console.error('Failed to fetch user info:', error)
+    }
+  }
+
+  async fetchUsage() {
+    if (!this.githubToken || !this.githubUsername) return
+
+    this.usageInfo.textContent = '...'
+    this.usageInfo.className = 'usage-info loading'
+
+    try {
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = now.getMonth() + 1
+
+      const response = await fetch(
+        `https://api.github.com/users/${this.githubUsername}/settings/billing/usage?year=${year}&month=${month}`,
+        {
+          headers: {
+            'Authorization': `token ${this.githubToken}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        }
+      )
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          this.usageInfo.textContent = 'Token needs "Plan" permission'
+          this.usageInfo.className = 'usage-info warning'
+        } else {
+          this.usageInfo.textContent = '—'
+        }
+        return
+      }
+
+      const data = await response.json()
+      this.updateUsageDisplay(data)
+    } catch (error) {
+      console.error('Failed to fetch usage:', error)
+      this.usageInfo.textContent = '—'
+    }
+  }
+
+  updateUsageDisplay(data) {
+    if (!data || !data.usageItems) {
+      this.usageInfo.textContent = '—'
+      return
+    }
+
+    let totalGross = 0
+    let totalDiscount = 0
+    let totalNet = 0
+
+    for (const item of data.usageItems) {
+      totalGross += parseFloat(item.grossAmount || 0)
+      totalDiscount += parseFloat(item.discountAmount || 0)
+      totalNet += parseFloat(item.netAmount || 0)
+    }
+
+    const includedCredits = 5.00
+    const remainingCredits = Math.max(0, includedCredits - totalNet)
+    const usagePercent = (totalNet / includedCredits) * 100
+
+    let statusClass = 'ok'
+    let statusText = ''
+
+    if (usagePercent >= 100) {
+      statusClass = 'danger'
+      statusText = `$${totalNet.toFixed(2)} used`
+    } else if (usagePercent >= 75) {
+      statusClass = 'warning'
+      statusText = `$${totalNet.toFixed(2)}/$${includedCredits}`
+    } else {
+      statusText = `$${totalNet.toFixed(2)}`
+    }
+
+    this.usageInfo.textContent = statusText
+    this.usageInfo.className = `usage-info ${statusClass}`
+
+    localStorage.setItem('thingy-usage-data', JSON.stringify({
+      lastUpdated: new Date().toISOString(),
+      totalGross,
+      totalDiscount,
+      totalNet,
+      remainingCredits
+    }))
+  }
+
   registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js')
+      navigator.serviceWorker.register('./service-worker.js')
         .then(registration => {
           console.log('Service Worker registered:', registration)
         })
