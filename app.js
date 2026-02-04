@@ -71,6 +71,8 @@ class ChatApp {
     
     // DOM Elements - Sidebar
     this.sidebar = document.getElementById('sidebar')
+    this.sidebarOverlay = document.getElementById('sidebarOverlay')
+    this.menuToggle = document.getElementById('menuToggle')
     this.newChatBtn = document.getElementById('newChatBtn')
     this.conversationsList = document.getElementById('conversationsList')
     
@@ -109,8 +111,15 @@ class ChatApp {
   }
 
   init() {
+    // Mobile menu toggle
+    this.menuToggle.addEventListener('click', () => this.toggleSidebar())
+    this.sidebarOverlay.addEventListener('click', () => this.closeSidebar())
+    
     // Sidebar events
-    this.newChatBtn.addEventListener('click', () => this.createNewConversation())
+    this.newChatBtn.addEventListener('click', () => {
+      this.createNewConversation()
+      this.closeSidebar()
+    })
     
     // Sync events
     this.showTokenBtn.addEventListener('click', () => this.showTokenInput())
@@ -141,6 +150,14 @@ class ChatApp {
       }
     })
     this.messageInput.addEventListener('input', () => this.autoResizeTextarea())
+    
+    // Mobile: Ensure textarea is focusable
+    this.messageInput.addEventListener('touchstart', (e) => {
+      if (!this.messageInput.disabled) {
+        e.stopPropagation()
+        this.messageInput.focus()
+      }
+    }, { passive: true })
     this.deleteChatBtn.addEventListener('click', () => this.showDeleteDialog())
     
     // Dialog events
@@ -187,6 +204,17 @@ class ChatApp {
     this.currentConversationId = id
     this.renderConversationsList()
     this.renderMessages()
+    this.closeSidebar()
+  }
+
+  toggleSidebar() {
+    this.sidebar.classList.toggle('open')
+    this.sidebarOverlay.classList.toggle('open')
+  }
+
+  closeSidebar() {
+    this.sidebar.classList.remove('open')
+    this.sidebarOverlay.classList.remove('open')
   }
 
   deleteConversation(id) {
