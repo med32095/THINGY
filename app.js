@@ -158,6 +158,14 @@ class ChatApp {
         this.messageInput.focus()
       }
     }, { passive: true })
+    
+    // Scroll to bottom when focusing input
+    this.messageInput.addEventListener('focus', () => {
+      if (this.messagesList) {
+        this.messagesList.scrollTop = this.messagesList.scrollHeight
+      }
+    })
+    
     this.deleteChatBtn.addEventListener('click', () => this.showDeleteDialog())
     
     // Dialog events
