@@ -14,7 +14,9 @@ class TodoApp {
     this.itemsLeft = document.getElementById('itemsLeft');
     this.clearCompleted = document.getElementById('clearCompleted');
     this.filterBtns = document.querySelectorAll('.filter-btn');
-    this.githubLoginBtn = document.getElementById('githubLogin');
+    this.tokenInputSection = document.getElementById('tokenInputSection');
+    this.tokenInput = document.getElementById('tokenInput');
+    this.saveTokenBtn = document.getElementById('saveTokenBtn');
     this.syncInfo = document.getElementById('syncInfo');
     this.lastSync = document.getElementById('lastSync');
     this.syncIndicator = document.getElementById('syncIndicator');
@@ -40,12 +42,12 @@ class TodoApp {
     });
     
     this.clearCompleted.addEventListener('click', () => this.clearCompletedTodos());
-    this.githubLoginBtn.addEventListener('click', () => this.loginWithGitHub());
+    this.saveTokenBtn.addEventListener('click', () => this.saveToken());
+    this.tokenInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.saveToken();
+    });
     this.syncNowBtn.addEventListener('click', () => this.syncNow());
     this.logoutBtn.addEventListener('click', () => this.logout());
-    
-    // Check for OAuth callback
-    this.handleOAuthCallback();
     
     // Initialize sync if already logged in
     if (this.githubToken) {
@@ -56,6 +58,14 @@ class TodoApp {
     
     this.render();
     this.registerServiceWorker();
+  }
+
+  saveToken() {
+    const token = this.tokenInput.value.trim();
+    if (token) {
+      this.setGitHubToken(token);
+      this.tokenInput.value = '';
+    }
   }
   
   addTodo() {
@@ -157,36 +167,7 @@ class TodoApp {
     }
   }
 
-  // GitHub OAuth Methods
-  loginWithGitHub() {
-    const clientId = 'YOUR_GITHUB_CLIENT_ID'; // You'll need to create a GitHub OAuth app
-    const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
-    const scope = 'gist';
-    const state = Math.random().toString(36).substring(7);
-    
-    localStorage.setItem('thingy-oauth-state', state);
-    
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`;
-    window.location.href = authUrl;
-  }
-
-  handleOAuthCallback() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const state = urlParams.get('state');
-    const savedState = localStorage.getItem('thingy-oauth-state');
-    
-    if (code && state === savedState) {
-      // Exchange code for token (you'll need a backend or use a service like auth0)
-      // For now, we'll simulate this - in production, you'd need a server
-      console.log('GitHub OAuth code received:', code);
-      // Clear the URL parameters
-      window.history.replaceState({}, document.title, window.location.pathname);
-      localStorage.removeItem('thingy-oauth-state');
-    }
-  }
-
-  // Manual token entry for testing (since we need a backend for OAuth)
+  // GitHub Token Methods
   setGitHubToken(token) {
     this.githubToken = token;
     localStorage.setItem('thingy-github-token', token);
@@ -205,12 +186,12 @@ class TodoApp {
   }
 
   showSyncUI() {
-    this.githubLoginBtn.classList.add('hidden');
+    this.tokenInputSection.classList.add('hidden');
     this.syncInfo.classList.remove('hidden');
   }
 
   hideSyncUI() {
-    this.githubLoginBtn.classList.remove('hidden');
+    this.tokenInputSection.classList.remove('hidden');
     this.syncInfo.classList.add('hidden');
   }
 
