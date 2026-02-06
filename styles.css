@@ -10,9 +10,55 @@
   --success: #4ade80;
   --warning: #fbbf24;
   --danger: #f87171;
-  --header-height: 72px;
+  --header-height: 60px;
   --bottom-nav-height: 70px;
+ }
+
+ /* Top banner (fixed) tweaks to avoid covering app content */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background: #1a1a2e;
+  color: #fff;
+  z-index: 1000;
 }
+/* Note: relying on the fixed header spacer to offset content. */
+
+/* Top-right sync badge and brand */
+.sync-status {
+  background: rgba(0,0,0,0.25);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.brand-home {
+  margin-left: auto;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Settings card */
+.settings-page { display: flex; justify-content: center; padding: 40px; }
+.card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 20px; width: min(720px, 92%); }
+.card h2 { margin-top: 0; }
+.form-row { margin: 12px 0; display: flex; flex-direction: column; }
+.form-row label { font-size: 14px; margin-bottom: 6px; color: var(--text); }
+.form-row input[type="password"] { padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #111827; color: #e5e7eb; }
+.form-actions { display: flex; gap: 12px; margin-top: 8px; }
+.primary-btn { background: #e94560; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
+.danger-btn { background: #374151; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
+.status { margin-top: 10px; height: 1.2em; font-size: 13px; }
+
+/* Settings FAB appearance override (optional) */
+.settings-fab { z-index: 9999; }
 
 * {
   margin: 0;
@@ -45,26 +91,16 @@ body {
 
 /* Individual app containers */
 #cubeTimer-app,
-#habitTracker-app {
+#habitTracker-app,
+#settings-app {
   display: none;
   width: 100%;
   height: 100%;
   overflow-y: auto;
+  padding-top: calc(var(--header-height)); /* ensure app content starts below fixed header */
+  box-sizing: border-box;
 }
-
- .app-header {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   padding: 16px 20px;
-   background: var(--surface);
-   border-bottom: 1px solid var(--border);
-   flex-shrink: 0;
-   position: sticky;
-   top: 0;
-   z-index: 20;
-   height: var(--header-height);
-}
+ 
 
 .app-header h1 {
   font-size: 1.25rem;

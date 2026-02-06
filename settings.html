@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THINGY Settings</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<main class="settings-page">
+    <section class="card">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <a href="index.html" class="home-btn" style="text-decoration:none; padding:6px 10px; border-radius:6px; background:#1f2937; color:#fff;">Home</a>
+        <h2 style="margin:0;">GitHub Sync Settings</h2>
+        <span style="width:60px;"></span>
+      </div>
+      <div class="form-row">
+        <label for="githubToken">GitHub Personal Access Token (PAT)</label>
+        <input type="password" id="githubToken" placeholder="PAT with gist scope" />
+      </div>
+      <div class="form-row">
+        <label><input type="checkbox" id="autoSync" checked disabled> Auto-sync (always on)</label>
+      </div>
+      <div class="form-actions">
+        <button id="saveBtn" class="primary-btn">Save</button>
+        <button id="clearBtn" class="danger-btn">Clear</button>
+      </div>
+      <div id="status" class="status" aria-live="polite"></div>
+    </section>
+  </main>
+  <script src="settings.js"></script>
+</body>
+</html>

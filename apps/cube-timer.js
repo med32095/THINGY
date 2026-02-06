@@ -11,6 +11,10 @@ class CubeTimerApp extends BaseApp {
     this.currentScramble = ''
     this.lastSolve = null
     this.currentFilter = 'all'
+    
+    // Auto-sync configuration
+    this.autoSyncMs = 60000
+    this.autoSyncHandle = null
   }
 
   async loadData() {
@@ -29,6 +33,140 @@ class CubeTimerApp extends BaseApp {
     this.data.settings = this.settings
     this.data.records = this.records
     await super.saveData()
+    // Trigger a sync after saving a solve so the latest result is pushed
+    this.syncWithGist()
+  }
+
+  // ---------- GitHub Gist Sync (auto + manual triggers) ----------
+  getGithubToken() {
+    // Try token from cube-timer settings in localStorage
+    try {
+      const raw = localStorage.getItem('cube-timer-settings')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed && parsed.githubToken) return parsed.githubToken
+        if (parsed && parsed.token) return parsed.token
+      }
+    } catch (e) {
+      // ignore
+    }
+    // Fallback: try appData storage in the main data model
+    const globalSettings = this.appManager?.data?.settings || {}
+    if (globalSettings.githubToken) return globalSettings.githubToken
+    return null
+  }
+
+  setGithubToken(token) {
+    try {
+      const raw = localStorage.getItem('cube-timer-settings')
+      let parsed = {}
+      if (raw) {
+        parsed = JSON.parse(raw)
+      }
+      parsed.githubToken = token
+      localStorage.setItem('cube-timer-settings', JSON.stringify(parsed))
+      this.appManager.setSyncStatus('Token saved')
+    } catch (e) {
+      this.appManager.setSyncStatus('Error saving token')
+    }
+  }
+
+  getGistId() {
+    // Prefer in-app settings
+    if (this.settings && this.settings.gistId) return this.settings.gistId
+    try {
+      const raw = localStorage.getItem('cube-timer-settings')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed && parsed.gistId) return parsed.gistId
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null
+  }
+
+  setGistId(id) {
+    this.settings = this.settings || {}
+    this.settings.gistId = id
+    this.saveData()
+  }
+
+  async createGist(token, content) {
+    const url = 'https://api.github.com/gists'
+    const body = {
+      description: 'THINGY Cube Timer solves',
+      public: false,
+      files: {
+        'cube-timer-solves.json': { content }
+      }
+    }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github+json'
+      },
+      body: JSON.stringify(body)
+    })
+    if (!res.ok) throw new Error(`Create gist failed: ${res.status}`)
+    const data = await res.json()
+    return data?.id
+  }
+
+  async updateGist(token, gistId, content) {
+    const url = `https://api.github.com/gists/${gistId}`
+    const body = {
+      files: {
+        'cube-timer-solves.json': { content }
+      }
+    }
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github+json'
+      },
+      body: JSON.stringify(body)
+    })
+    if (!res.ok) throw new Error(`Update gist failed: ${res.status}`)
+    return true
+  }
+
+  async syncWithGist() {
+    const token = this.getGithubToken()
+    if (!token) {
+      this.appManager.setSyncStatus('Sync: token missing')
+      return
+    }
+
+    const solvesContent = JSON.stringify({ solves: this.solves })
+    const gistId = this.getGistId()
+    try {
+      let id = gistId
+      if (!id) {
+        id = await this.createGist(token, solvesContent)
+        if (id) {
+          this.setGistId(id)
+        }
+      } else {
+        await this.updateGist(token, id, solvesContent)
+      }
+      this.appManager.setSyncStatus('Synced')
+    } catch (e) {
+      this.appManager.setSyncStatus(`Sync error: ${e.message}`)
+    }
+  }
+
+  startAutoSync() {
+    if (this.autoSyncHandle) {
+      clearInterval(this.autoSyncHandle)
+    }
+    this.autoSyncHandle = setInterval(() => this.syncWithGist(), this.autoSyncMs)
+    // Do an initial sync immediately
+    this.syncWithGist()
   }
 
   initElements() {
@@ -135,6 +273,8 @@ class CubeTimerApp extends BaseApp {
     this.renderRecords()
     this.updateStats()
     this.setupKeyboardControls()
+    // Start auto-sync loop after initial render
+    this.startAutoSync()
   }
 
   showTab(tab) {
@@ -156,7 +296,10 @@ class CubeTimerApp extends BaseApp {
         this.updateStats()
         break
       case 'settings':
-        this.settingsSection.style.display = 'block'
+        // Launch the Settings app as its own card-based app
+        if (this.appManager && this.appManager.launchApp) {
+          this.appManager.launchApp('settings')
+        }
         break
     }
   }
@@ -566,5 +709,9 @@ class CubeTimerApp extends BaseApp {
     }
     clearInterval(this.inspectionInterval)
     clearInterval(this.timerInterval)
+    if (this.autoSyncHandle) {
+      clearInterval(this.autoSyncHandle)
+      this.autoSyncHandle = null
+    }
   }
 }

@@ -6,6 +6,8 @@ class AppManager {
     this.data = {}
     
     this.init()
+    // Ensure brand/home interaction is wired upfront
+    this.attachBrandHomeHandler()
   }
 
   async init() {
@@ -15,6 +17,8 @@ class AppManager {
     this.initHomeScreen()
     this.initEventListeners()
     this.showHome()
+    // Initialize sync status badge (if present)
+    this.ensureSyncBadge()
   }
 
   async loadData() {
@@ -23,7 +27,7 @@ class AppManager {
       settings: {
         theme: 'dark'
       },
-      installedApps: ['cubeTimer', 'habitTracker']
+      installedApps: ['cubeTimer', 'habitTracker', 'settings']
     }
   }
 
@@ -81,9 +85,36 @@ class AppManager {
   registerApps() {
     this.apps.set('cubeTimer', new CubeTimerApp(this, 'cubeTimer'))
     this.apps.set('habitTracker', new HabitTrackerApp(this, 'habitTracker'))
+    this.apps.set('settings', new SettingsApp(this, 'settings'))
     
     // Set global reference for habit tracker
     window.habitTrackerApp = this.apps.get('habitTracker')
+  }
+
+  // Home navigation via the top-right brand
+  attachBrandHomeHandler() {
+    const brand = document.getElementById('brand-home')
+    if (brand) {
+      brand.addEventListener('click', () => this.goHome())
+    }
+  }
+
+  // Sync status badge helpers
+  ensureSyncBadge() {
+    // create if not present already
+    const el = document.getElementById('thingy-sync-status')
+    if (el) {
+      el.style.display = 'inline-block'
+      this.setSyncStatus('Sync: idle')
+    }
+  }
+
+  setSyncStatus(text) {
+    const el = document.getElementById('thingy-sync-status')
+    if (el) {
+      el.textContent = text
+      el.style.display = 'inline-block'
+    }
   }
 
   initHomeScreen() {
@@ -108,6 +139,14 @@ class AppManager {
         color: '#4ade80',
         description: 'Track daily habits and build streaks'
       }
+      ,
+      {
+        id: 'settings',
+        name: 'Settings',
+        icon: '⚙️',
+        color: '#64748b',
+        description: 'Sync and token management'
+      }
     ]
 
     appConfigs.forEach(config => {
@@ -127,6 +166,22 @@ class AppManager {
         appGrid.appendChild(appCard)
       }
     })
+
+    // Ensure Settings tile is visible even if not listed in installedApps (debug safety)
+    if (!this.data.installedApps.includes('settings')) {
+      const settingsCard = document.createElement('div')
+      settingsCard.className = 'app-card'
+      settingsCard.dataset.appId = 'settings'
+      settingsCard.innerHTML = `
+        <div class="app-icon" style="background: #64748b;">
+          <span style="font-size: 2rem;">⚙️</span>
+        </div>
+        <div class="app-name">Settings</div>
+        <div class="app-description">Sync and token management</div>
+      `
+      settingsCard.addEventListener('click', () => this.launchApp('settings'))
+      appGrid.appendChild(settingsCard)
+    }
   }
 
   initEventListeners() {
@@ -154,7 +209,6 @@ class AppManager {
     this.isHome = false
     
     document.getElementById('home-screen').style.display = 'none'
-    document.getElementById('home-btn').style.display = 'block'
     
     app.activate()
   }
@@ -167,7 +221,8 @@ class AppManager {
 
     this.isHome = true
     document.getElementById('home-screen').style.display = 'block'
-    document.getElementById('home-btn').style.display = 'none'
+    const homeBtn = document.getElementById('home-btn')
+    if (homeBtn) homeBtn.style.display = 'none'
   }
 
   showHome() {

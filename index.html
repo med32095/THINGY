@@ -12,16 +12,17 @@
 </head>
 <body>
     <div class="app-container">
-        <header class="app-header">
-            <h1>THINGY</h1>
-            <button class="home-btn" id="home-btn" style="display: none;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-                    <polyline points="9,22 9,12 15,12 15,22"/>
-                </svg>
-                Home
-            </button>
+        <header class="app-header" style="display:flex; align-items:center;">
+            <!-- Brand/Home goes to the top-right for home navigation -->
+            <div id="brand-home" style="margin-left:auto; cursor:pointer; padding:8px 12px; font-weight:600;">
+                THINGY
+            </div>
+            <div id="thingy-sync-status" class="sync-status" style="margin-left:8px; padding:6px 10px; border-radius:999px; background:rgba(0,0,0,.25); color:#fff; font-size:12px; display:none;">
+                Synced
+            </div>
         </header>
+
+        <!-- Settings access is via the Settings app card in the home grid -->
 
         <main class="main-content">
             <!-- Home Screen -->
@@ -239,6 +240,7 @@
     <script src="apps/base-app.js"></script>
     <script src="apps/cube-timer.js"></script>
     <script src="apps/habit-tracker.js"></script>
+    <script src="apps/settings-app.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
