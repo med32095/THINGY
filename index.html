@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Rubik's Cube Timer</title>
+    <title>THINGY</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a1a2e">
@@ -13,166 +13,232 @@
 <body>
     <div class="app-container">
         <header class="app-header">
-            <h1>Cube Timer</h1>
-            <div class="stats-toggle" id="statsToggle">
+            <h1>THINGY</h1>
+            <button class="home-btn" id="home-btn" style="display: none;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 20V10M12 20V4M6 20v-6"/>
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                    <polyline points="9,22 9,12 15,12 15,22"/>
                 </svg>
-            </div>
+                Home
+            </button>
         </header>
 
         <main class="main-content">
-            <div class="timer-section">
-                <div class="inspection-warning" id="inspectionWarning">
-                    <span class="warning-icon">!</span>
-                    <span class="warning-text">Inspection</span>
-                    <span class="inspection-count" id="inspectionCount">15</span>
+            <!-- Home Screen -->
+            <div class="home-screen" id="home-screen">
+                <div class="app-grid" id="app-grid">
+                    <!-- App cards will be dynamically inserted here -->
                 </div>
-                <div class="timer-display" id="timerDisplay">0.00</div>
-                <div class="timer-controls">
-                    <button class="control-btn scramble-btn" id="scrambleBtn">
+            </div>
+
+            <!-- Cube Timer App -->
+            <div class="app-container" id="cubeTimer-app" style="display: none;">
+                <div class="timer-section">
+                    <div class="inspection-warning" id="inspectionWarning">
+                        <span class="warning-icon">!</span>
+                        <span class="warning-text">Inspection</span>
+                        <span class="inspection-count" id="inspectionCount">15</span>
+                    </div>
+                    <div class="timer-display" id="timerDisplay">0.00</div>
+                    <div class="timer-controls">
+                        <button class="control-btn scramble-btn" id="scrambleBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            </svg>
+                            Scramble
+                        </button>
+                        <button class="control-btn start-stop-btn" id="startStopBtn">
+                            <svg viewBox="0 0 24 24" fill="currentColor" class="play-icon">
+                                <polygon points="5,3 19,12 5,21"/>
+                            </svg>
+                            <svg viewBox="0 0 24 24" fill="currentColor" class="pause-icon" style="display:none;">
+                                <rect x="6" y="4" width="4" height="16"/>
+                                <rect x="14" y="4" width="4" height="16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="scramble-display" id="scrambleDisplay">
+                    R U R' U' R' F R2 U' R' U' R U R' F'
+                </div>
+
+                <div class="records-section" id="recordsSection">
+                    <h2>Personal Records</h2>
+                    <div class="records-grid">
+                        <div class="record-card">
+                            <span class="record-label">Single</span>
+                            <span class="record-value" id="singleRecord">--</span>
+                            <span class="record-date" id="singleDate"></span>
+                        </div>
+                        <div class="record-card">
+                            <span class="record-label">Ao5</span>
+                            <span class="record-value" id="ao5Record">--</span>
+                            <span class="record-date" id="ao5Date"></span>
+                        </div>
+                        <div class="record-card">
+                            <span class="record-label">Ao12</span>
+                            <span class="record-value" id="ao12Record">--</span>
+                            <span class="record-date" id="ao12Date"></span>
+                        </div>
+                        <div class="record-card">
+                            <span class="record-label">Ao50</span>
+                            <span class="record-value" id="ao50Record">--</span>
+                            <span class="record-date" id="ao50Date"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="history-section" id="historySection">
+                    <h2>Solve History</h2>
+                    <div class="history-controls">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="last10">Last 10</button>
+                        <button class="filter-btn" data-filter="last50">Last 50</button>
+                    </div>
+                    <div class="history-list" id="historyList"></div>
+                </div>
+
+                <div class="charts-section" id="chartsSection" style="display: none;">
+                    <h2>Statistics</h2>
+                    <div class="chart-container">
+                        <canvas id="timeChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="distributionChart"></canvas>
+                    </div>
+                    <div class="stats-summary">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Solves</span>
+                            <span class="stat-value" id="totalSolves">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Average</span>
+                            <span class="stat-value" id="totalAverage">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Best Session</span>
+                            <span class="stat-value" id="bestSession">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section" id="settingsSection" style="display: none;">
+                    <h2>Settings</h2>
+                    <div class="setting-item">
+                        <label for="inspectionTime">Inspection Time</label>
+                        <select id="inspectionTime">
+                            <option value="0">Off</option>
+                            <option value="8">8 seconds</option>
+                            <option value="10">10 seconds</option>
+                            <option value="15" selected>15 seconds</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="timerType">Timer Type</label>
+                        <select id="timerType">
+                            <option value="touch">Touch</option>
+                            <option value="keys">Spacebar</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="theme">Theme</label>
+                        <select id="theme">
+                            <option value="dark" selected>Dark</option>
+                            <option value="light">Light</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <button class="danger-btn" id="clearDataBtn">Clear All Data</button>
+                    </div>
+                </div>
+
+                <nav class="bottom-nav">
+                    <button class="nav-btn active" data-tab="timer">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12,6 12,12 16,14"/>
                         </svg>
-                        Scramble
+                        Timer
                     </button>
-                    <button class="control-btn start-stop-btn" id="startStopBtn">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="play-icon">
-                            <polygon points="5,3 19,12 5,21"/>
+                    <button class="nav-btn" data-tab="history">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="pause-icon" style="display:none;">
-                            <rect x="6" y="4" width="4" height="16"/>
-                            <rect x="14" y="4" width="4" height="16"/>
+                        History
+                    </button>
+                    <button class="nav-btn" data-tab="charts">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                         </svg>
+                        Stats
+                    </button>
+                    <button class="nav-btn" data-tab="settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+                        </svg>
+                        Settings
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Habit Tracker App -->
+            <div class="app-container" id="habitTracker-app" style="display: none;">
+                <div class="habits-header">
+                    <h2>Daily Habits</h2>
+                    <button class="add-habit-btn" id="addHabitBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Add Habit
                     </button>
                 </div>
-            </div>
 
-            <div class="scramble-display" id="scrambleDisplay">
-                R U R' U' R' F R2 U' R' U' R U R' F'
-            </div>
+                <div class="habits-overview">
+                    <div class="overview-card">
+                        <span class="overview-label">Today's Progress</span>
+                        <span class="overview-value" id="todayProgress">0/0</span>
+                    </div>
+                    <div class="overview-card">
+                        <span class="overview-label">Current Streak</span>
+                        <span class="overview-value" id="currentStreak">0 days</span>
+                    </div>
+                    <div class="overview-card">
+                        <span class="overview-label">Best Streak</span>
+                        <span class="overview-value" id="bestStreak">0 days</span>
+                    </div>
+                </div>
 
-            <div class="records-section" id="recordsSection">
-                <h2>Personal Records</h2>
-                <div class="records-grid">
-                    <div class="record-card">
-                        <span class="record-label">Single</span>
-                        <span class="record-value" id="singleRecord">--</span>
-                        <span class="record-date" id="singleDate"></span>
-                    </div>
-                    <div class="record-card">
-                        <span class="record-label">Ao5</span>
-                        <span class="record-value" id="ao5Record">--</span>
-                        <span class="record-date" id="ao5Date"></span>
-                    </div>
-                    <div class="record-card">
-                        <span class="record-label">Ao12</span>
-                        <span class="record-value" id="ao12Record">--</span>
-                        <span class="record-date" id="ao12Date"></span>
-                    </div>
-                    <div class="record-card">
-                        <span class="record-label">Ao50</span>
-                        <span class="record-value" id="ao50Record">--</span>
-                        <span class="record-date" id="ao50Date"></span>
-                    </div>
+                <div class="habits-list" id="habitsList">
+                    <!-- Habits will be dynamically inserted here -->
                 </div>
-            </div>
 
-            <div class="history-section" id="historySection">
-                <h2>Solve History</h2>
-                <div class="history-controls">
-                    <button class="filter-btn active" data-filter="all">All</button>
-                    <button class="filter-btn" data-filter="last10">Last 10</button>
-                    <button class="filter-btn" data-filter="last50">Last 50</button>
-                </div>
-                <div class="history-list" id="historyList"></div>
-            </div>
-
-            <div class="charts-section" id="chartsSection" style="display: none;">
-                <h2>Statistics</h2>
-                <div class="chart-container">
-                    <canvas id="timeChart"></canvas>
-                </div>
-                <div class="chart-container">
-                    <canvas id="distributionChart"></canvas>
-                </div>
-                <div class="stats-summary">
-                    <div class="stat-item">
-                        <span class="stat-label">Total Solves</span>
-                        <span class="stat-value" id="totalSolves">0</span>
+                <div class="habit-stats" id="habitStats" style="display: none;">
+                    <h3>Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-label">Completion Rate</span>
+                            <span class="stat-value" id="completionRate">0%</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Total Completed</span>
+                            <span class="stat-value" id="totalCompleted">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Days Tracked</span>
+                            <span class="stat-value" id="daysTracked">0</span>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Average</span>
-                        <span class="stat-value" id="totalAverage">--</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Best Session</span>
-                        <span class="stat-value" id="bestSession">--</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="settings-section" id="settingsSection" style="display: none;">
-                <h2>Settings</h2>
-                <div class="setting-item">
-                    <label for="inspectionTime">Inspection Time</label>
-                    <select id="inspectionTime">
-                        <option value="0">Off</option>
-                        <option value="8">8 seconds</option>
-                        <option value="10">10 seconds</option>
-                        <option value="15" selected>15 seconds</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <label for="timerType">Timer Type</label>
-                    <select id="timerType">
-                        <option value="touch">Touch</option>
-                        <option value="keys">Spacebar</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <label for="theme">Theme</label>
-                    <select id="theme">
-                        <option value="dark" selected>Dark</option>
-                        <option value="light">Light</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <button class="danger-btn" id="clearDataBtn">Clear All Data</button>
                 </div>
             </div>
         </main>
-
-        <nav class="bottom-nav">
-            <button class="nav-btn active" data-tab="timer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12,6 12,12 16,14"/>
-                </svg>
-                Timer
-            </button>
-            <button class="nav-btn" data-tab="history">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                History
-            </button>
-            <button class="nav-btn" data-tab="charts">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
-                Stats
-            </button>
-            <button class="nav-btn" data-tab="settings">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
-                </svg>
-                Settings
-            </button>
-        </nav>
     </div>
 
+    <script src="apps/base-app.js"></script>
+    <script src="apps/cube-timer.js"></script>
+    <script src="apps/habit-tracker.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

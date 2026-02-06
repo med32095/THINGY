@@ -1,7 +1,7 @@
 {
-  "name": "Cube Timer",
-  "short_name": "CubeTimer",
-  "description": "A mobile-friendly Rubik's cube timer with statistics tracking",
+  "name": "THINGY",
+  "short_name": "THINGY",
+  "description": "Your personal multi-app suite with cube timer, habit tracker, and more",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#1a1a2e",
